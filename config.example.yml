@@ -1,0 +1,15 @@
+#YAML
+scanner:
+    threads_num: 2
+api:
+    port: 8000
+metrics:
+    is_enabled: false
+    port: 9099
+postgres:
+    host: localhost
+    port: 5432
+    user: postgres
+    pass: test
+    database: extrnode
+    migrations_path: ""

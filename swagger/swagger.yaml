@@ -1,0 +1,90 @@
+openapi: 3.0.1
+info:
+  title: Swagger
+  termsOfService: http://swagger.io/terms/
+  version: 1.0.4
+  schemas:
+    LiquidityDistribution:
+      properties:
+        So111...:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiquidityDistributionByToken"
+    LiquidityDistributionByToken:
+      type: object
+      properties:
+        money_market:
+          type: string
+        percent:
+          type: number
+          format: float64
+    RewardAPR:
+      type: object
+      properties:
+        reward_token_mint:
+          type: string
+        reward_apr:
+          type: number
+          format: float64
+    MoneyMarketAPY:
+      type: object
+      properties:
+        protocol_name:
+          type: string
+        money_market:
+          type: string
+        reward_token:
+          type: string
+        token:
+          type: string
+        token_mint:
+          type: string
+        supply_apy:
+          type: number
+          format: float64
+        borrow_apy:
+          type: number
+          format: float64
+        supply_reward_apr:
+          type: array
+          items:
+            $ref: '#/components/schemas/RewardAPR'
+        borrow_reward_apr:
+          type: array
+          items:
+            $ref: '#/components/schemas/RewardAPR'
+    Count:
+      type: object
+      properties:
+        count:
+          type: integer
+    IncomeAmount:
+      type: object
+      properties:
+        income_amount:
+          type: integer
+    Info:
+      type: object
+      properties:
+        tvl:
+          type: number
+          format: float64
+    UserTransaction:
+      type: object
+      properties:
+        user_account:
+          type: string
+        block_time:
+          type: string
+          format: date-time
+        asset:
+          type: string
+        operation:
+          type: string
+          enum: [deposit, withdraw, withdrawReq, claim]
+        amount:
+          type: integer
+        tx_signature:
+          type: string
+        instruction_idx:
+          type: integer
