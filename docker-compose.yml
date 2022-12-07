@@ -1,8 +1,8 @@
 version: "3.1"
 
 services:
-  extrnode-indexer:
-    container_name: extrnode-indexer
+  extrnode-scanner:
+    container_name: extrnode-scanner
     image: extrnode-go:latest
     restart: always
     tty: true
@@ -10,7 +10,7 @@ services:
       - "9098:9099"
     depends_on:
       - postgres
-    entrypoint: "indexer"
+    entrypoint: "scanner"
 
   # extrnode-api:
   #   container_name: extrnode-api
@@ -38,7 +38,7 @@ services:
     container_name: extrnode-postgres
     image: postgres:11
     ports:
-      - 5432:5432
+      - "5432:5432"
     restart: always
     environment:
       POSTGRES_USER: "${PG_USER}"
@@ -46,6 +46,7 @@ services:
       POSTGRES_DB: "${PG_DB}"
     volumes:
       - postgres:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d
 
 volumes:
   postgres:

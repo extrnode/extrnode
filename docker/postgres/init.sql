@@ -1,0 +1,3 @@
+CREATE SCHEMA rpc;
+CREATE SCHEMA geo;
+CREATE SCHEMA scanner;

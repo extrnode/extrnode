@@ -1,10 +1,11 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Config is the top-level configuration for Prometheus's config files.
@@ -37,32 +38,30 @@ type MetricsConfig struct {
 	Port      int  `yaml:"port"`
 }
 
-func (c Config) Validate() (err error) {
-	return nil
-}
-
 // LoadFile parses the given YAML file into a Config.
-func LoadFile(filename string) (Config, error) {
+func LoadFile(filename string) (c Config, err error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return Config{}, err
+		return c, err
 	}
-	cfg, err := Load(string(content))
+	cfg, err := Load(content)
 	if err != nil {
-		return Config{}, errors.Wrapf(err, "parsing YAML file %s", filename)
+		return c, fmt.Errorf("parsing YAML file %s: %s", filename, err)
 	}
 
-	err = cfg.Validate()
+	err = cfg.validate()
 	if err != nil {
-		return Config{}, errors.Wrapf(err, "validate Config error: %s", filename)
+		return c, fmt.Errorf("validate %s: %s", filename, err)
 	}
 
 	return cfg, nil
 }
 
 // Load parses the YAML input s into a Config.
-func Load(s string) (cfg Config, err error) {
-	err = yaml.UnmarshalStrict([]byte(s), &cfg)
+func Load(s []byte) (cfg Config, err error) {
+	d := yaml.NewDecoder(bytes.NewBuffer(s))
+	d.KnownFields(true)
+	err = d.Decode(&cfg)
 	if err != nil {
 		return cfg, err
 	}

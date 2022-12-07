@@ -24,4 +24,6 @@ func (a *SolanaAdapter) Scan(host string) error {
 func (a *SolanaAdapter) getNodes() error {
 	// Get list of nodes from host (getClusterNodes)
 	// put these nodes to DB, so they can be scheduled by scheduler on next iteration
+
+	return nil
 }

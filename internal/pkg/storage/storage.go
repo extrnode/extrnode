@@ -1,66 +1,68 @@
 package storage
 
 import (
-	"crypto/tls"
-	"extrnode-be/internal/pkg/config"
+	"context"
 	"fmt"
+	"time"
 
-	"github.com/go-pg/migrations"
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
-	"github.com/pkg/errors"
+	"extrnode-be/internal/pkg/config"
+
+	"github.com/go-pg/migrations/v8"
+	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 	log "github.com/sirupsen/logrus"
 )
 
-const rowsAffected = 0
-
-type Storage interface {
-	BeginTx() (TxStorage, error)
-
-	// CreateAsset(asset types.Asset) (types.Asset, error)
-}
-
-type TxStorage interface {
-	Rollback() error
-	Commit() error
-
-	Storage
-}
-
-type pgStorage struct {
-	conn *pg.DB
+type PgStorage struct {
 	db   orm.DB
+	isTx bool
 }
 
-type pgTxStorage struct {
-	pgStorage
-}
-
-func New(cfg config.PostgresConfig) (Storage, error) {
+func New(ctx context.Context, cfg config.PostgresConfig) (s PgStorage, err error) {
 	db := pg.Connect(&pg.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		User:     cfg.User,
-		Password: cfg.Pass,
-		Database: cfg.Database,
-		TLSConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
+		Addr:            fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		User:            cfg.User,
+		Password:        cfg.Pass,
+		Database:        cfg.Database,
+		DialTimeout:     5 * time.Second,
+		ReadTimeout:     5 * time.Second,
+		WriteTimeout:    5 * time.Second,
+		PoolTimeout:     20 * time.Second,
+		ApplicationName: "extrnode-go",
 	})
 
-	var oldVersion, newVersion int64
-	var err error
+	err = db.Ping(ctx)
+	if err != nil {
+		return s, fmt.Errorf("ping: %s", err)
+	}
 
 	collection := migrations.NewCollection()
 	collection.DisableSQLAutodiscover(true)
 	err = collection.DiscoverSQLMigrations(cfg.MigrationsPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "migrations error")
+		return s, fmt.Errorf("DiscoverSQLMigrations: %s", err)
 	}
 
-	collection.Run(db, "init")
-	oldVersion, newVersion, err = collection.Run(db, "up")
+	err = db.RunInTransaction(ctx, func(tx *pg.Tx) (err error) {
+		_, _, err = collection.Run(db, "init")
+		if err != nil {
+			return err
+		}
+		return
+	})
 	if err != nil {
-		return nil, err
+		return s, fmt.Errorf("init migration: %s", err)
+	}
+	var oldVersion, newVersion int64
+	err = db.RunInTransaction(ctx, func(tx *pg.Tx) (err error) {
+		oldVersion, newVersion, err = collection.Run(db, "up")
+		if err != nil {
+			return err
+		}
+		return
+	})
+	if err != nil {
+		return s, fmt.Errorf("migration: %s", err)
 	}
 
 	if newVersion != oldVersion {
@@ -69,30 +71,39 @@ func New(cfg config.PostgresConfig) (Storage, error) {
 		log.Infof("PG migration version is %d", oldVersion)
 	}
 
-	var d pgStorage
-	d.conn = db
-	d.db = db
-
-	return &d, nil
-}
-
-func (p *pgStorage) BeginTx() (TxStorage, error) {
-	tx, err := p.conn.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	return &pgTxStorage{
-		pgStorage: pgStorage{
-			db: tx,
-		},
+	return PgStorage{
+		db: db,
 	}, nil
 }
 
-func (p *pgTxStorage) Rollback() error {
+func (p *PgStorage) BeginTx() (s PgStorage, err error) {
+	if p.isTx {
+		return s, fmt.Errorf("already tx")
+	}
+
+	tx, err := p.db.(*pg.DB).Begin()
+	if err != nil {
+		return s, err
+	}
+
+	return PgStorage{
+		db:   tx,
+		isTx: true,
+	}, nil
+}
+
+func (p *PgStorage) Rollback() error {
+	if !p.isTx {
+		return fmt.Errorf("not tx")
+	}
+
 	return p.db.(*pg.Tx).Rollback()
 }
 
-func (p *pgTxStorage) Commit() error {
+func (p *PgStorage) Commit() error {
+	if !p.isTx {
+		return fmt.Errorf("not tx")
+	}
+
 	return p.db.(*pg.Tx).Commit()
 }

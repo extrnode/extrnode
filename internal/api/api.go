@@ -2,22 +2,22 @@ package api
 
 import (
 	"context"
-	"extrnode-be/internal/pkg/config"
-	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
 	"fmt"
 	"net/http"
 	"sync"
 
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
-	"github.com/pkg/errors"
+	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/storage"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type api struct {
 	port    uint64
 	router  *echo.Echo
-	storage storage.Storage
+	storage storage.PgStorage
 
 	waitGroup *sync.WaitGroup
 	ctx       context.Context
@@ -25,13 +25,14 @@ type api struct {
 }
 
 func NewAPI(cfg config.Config) (*api, error) {
-	s, err := storage.New(cfg.Postgres)
-	if err != nil {
-		return nil, errors.Wrap(err, "storage init")
-	}
-
 	var wg sync.WaitGroup
-	ctx, cancelFunc := context.WithCancel(context.TODO())
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	s, err := storage.New(ctx, cfg.Postgres)
+	if err != nil {
+		cancelFunc()
+		return nil, fmt.Errorf("storage init: %s", err)
+	}
 
 	api := &api{
 		port:    uint64(cfg.API.Port),
@@ -60,7 +61,7 @@ func (a *api) Run() error {
 		<-a.ctx.Done()
 		err := a.router.Shutdown(context.Background())
 		if err != nil {
-			log.Logger.Api.Errorf("api shutdown error: %s", err.Error())
+			log.Logger.Api.Errorf("api shutdown error: %s", err)
 		}
 	}()
 

@@ -1,12 +1,13 @@
 package main
 
 import (
+	"flag"
+	"time"
+
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
 	"extrnode-be/internal/scanner"
-	"flag"
-	"time"
 )
 
 const (
@@ -23,6 +24,7 @@ func getFlags() (f flags) {
 	flag.StringVar(&f.logLevel, "log", "debug", "log level [debug|info|warn|error|crit]")
 	flag.StringVar(&f.config, "conf", "./config.yml", "path to .env file")
 	flag.Parse()
+
 	return
 }
 
@@ -30,7 +32,7 @@ func main() {
 	f := getFlags()
 	err := log.Setup(f.logLevel)
 	if err != nil {
-		log.Logger.Scanner.Fatalf("Log setup: %s", err.Error())
+		log.Logger.Scanner.Fatalf("Log setup: %s", err)
 	}
 
 	cfg, err := config.LoadFile(f.config)
@@ -55,7 +57,7 @@ func main() {
 	go func() {
 		err := app.Run()
 		if err != nil {
-			log.Logger.Scanner.Fatalf("AccountsConsumer: %s", err.Error())
+			log.Logger.Scanner.Fatalf("AccountsConsumer: %s", err)
 		}
 	}()
 

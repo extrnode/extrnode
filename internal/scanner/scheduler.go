@@ -2,15 +2,16 @@ package scanner
 
 import (
 	"context"
-	"extrnode-be/internal/pkg/log"
 	"time"
+
+	"extrnode-be/internal/pkg/log"
 )
 
 const scannerInterval = time.Second * 5
 
 type chainType string
 
-const chainTypeSolana = "sol"
+const chainTypeSolana = "solana"
 
 type scannerTask struct {
 	host  string

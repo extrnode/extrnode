@@ -2,19 +2,19 @@ package scanner
 
 import (
 	"context"
+	"fmt"
+	"sync"
+
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
-	"sync"
-
-	"github.com/pkg/errors"
 )
 
 type scanner struct {
 	cfg     config.Config
-	storage storage.Storage
+	storage storage.PgStorage
 
 	taskQueue chan scannerTask
 
@@ -24,20 +24,19 @@ type scanner struct {
 }
 
 func NewScanner(cfg config.Config) (*scanner, error) {
-	s, err := storage.New(cfg.Postgres)
+	var wg sync.WaitGroup
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	s, err := storage.New(ctx, cfg.Postgres)
 	if err != nil {
-		return nil, errors.Wrap(err, "storage init")
+		cancelFunc()
+		return nil, fmt.Errorf("storage init: %s", err)
 	}
 
-	var wg sync.WaitGroup
-	ctx, cancelFunc := context.WithCancel(context.TODO())
-
 	return &scanner{
-		cfg:     cfg,
-		storage: s,
-
+		cfg:       cfg,
+		storage:   s,
 		taskQueue: make(chan scannerTask),
-
 		waitGroup: &wg,
 		ctx:       ctx,
 		ctxCancel: cancelFunc,
@@ -75,7 +74,7 @@ func (s *scanner) runScanner(ctx context.Context) {
 
 			err := adapter.Scan(task.host)
 			if err != nil {
-				log.Logger.Scanner.Errorf("scanner error. node %s. chain %d: %s", task.host, task.chain, err.Error())
+				log.Logger.Scanner.Errorf("scanner error. node %s. chain %s: %s", task.host, task.chain, err)
 			}
 		}
 	}
