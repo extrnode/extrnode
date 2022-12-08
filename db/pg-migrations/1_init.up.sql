@@ -92,7 +92,8 @@ create table if not exists peers
 	prs_port smallint not null,
 	prs_version varchar(8),
 	prs_is_rpc boolean,
-	prs_is_alive boolean
+	prs_is_alive boolean,
+	prs_is_ssl boolean
 );
 comment on table peers is 'todo:
 source of data (rpc fetch, logs) ';
