@@ -90,10 +90,10 @@ create table if not exists peers
 			references ips
 				on update cascade on delete restrict,
 	prs_port smallint not null,
-	prs_version varchar(8),
-	prs_is_rpc boolean,
-	prs_is_alive boolean,
-	prs_is_ssl boolean
+	prs_version varchar(8) not null,
+	prs_is_rpc boolean default false not null,
+	prs_is_alive boolean default false not null,
+	prs_is_ssl boolean default false not null
 );
 comment on table peers is 'todo:
 source of data (rpc fetch, logs) ';
@@ -103,6 +103,12 @@ create index peers_blc_id_index
     on peers (blc_id);
 create index peers_ip_id_index
     on peers (ip_id);
+create index peers_prs_version_index
+    on peers (prs_version);
+create index peers_prs_is_alive_blc_id_index
+    on peers (prs_is_alive, blc_id);
+create index peers_prs_is_rpc_index
+    on peers (prs_is_rpc);
 
 create table if not exists rpc.peers_methods
 (
@@ -161,6 +167,9 @@ create index methods_mtd_id_index
     on scanner.methods (mtd_id);
 create index methods_prs_id_index
     on scanner.methods (prs_id);
+create index methods_smt_date_index
+    on scanner.methods (smt_date desc);
+
 
 -- default data
 INSERT INTO blockchains (blc_id, blc_name) VALUES (1, 'solana');

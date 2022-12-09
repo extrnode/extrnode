@@ -24,7 +24,6 @@ type scanner struct {
 }
 
 func NewScanner(cfg config.Config) (*scanner, error) {
-	var wg sync.WaitGroup
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	s, err := storage.New(ctx, cfg.Postgres)
@@ -37,7 +36,7 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 		cfg:       cfg,
 		storage:   s,
 		taskQueue: make(chan scannerTask),
-		waitGroup: &wg,
+		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
 		ctxCancel: cancelFunc,
 	}, nil

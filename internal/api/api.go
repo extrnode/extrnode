@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
-
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 type api struct {
@@ -19,13 +19,19 @@ type api struct {
 	router  *echo.Echo
 	storage storage.PgStorage
 
-	waitGroup *sync.WaitGroup
-	ctx       context.Context
-	ctxCancel context.CancelFunc
+	waitGroup              *sync.WaitGroup
+	ctx                    context.Context
+	ctxCancel              context.CancelFunc
+	supportedOutputFormats map[string]struct{}
 }
 
+const (
+	jsonOutputFormat    = "json"
+	csvOutputFormat     = "csv"
+	haproxyOutputFormat = "haproxy"
+)
+
 func NewAPI(cfg config.Config) (*api, error) {
-	var wg sync.WaitGroup
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	s, err := storage.New(ctx, cfg.Postgres)
@@ -39,21 +45,31 @@ func NewAPI(cfg config.Config) (*api, error) {
 		router:  echo.New(),
 		storage: s,
 
-		waitGroup: &wg,
+		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
 		ctxCancel: cancelFunc,
+		supportedOutputFormats: map[string]struct{}{
+			jsonOutputFormat:    {},
+			csvOutputFormat:     {},
+			haproxyOutputFormat: {},
+		},
 	}
 
-	api.router.Use(middleware.Recover())
-	api.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	api.initApiHandlers()
+
+	return api, nil
+}
+
+func (a *api) initApiHandlers() {
+	a.router.Use(middleware.Recover())
+	a.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
 
-	apiGroup := api.router.Group("/api/v1")
-	apiGroup.GET("/info", api.getInfo)
-
-	return api, nil
+	apiGroup := a.router.Group("/api/v1")
+	apiGroup.GET("/info", a.getInfo)
+	apiGroup.GET("/endpoints", a.getEndpoints)
 }
 
 func (a *api) Run() error {
@@ -71,10 +87,6 @@ func (a *api) Run() error {
 	}
 
 	return nil
-}
-
-func (a *api) getInfo(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, nil)
 }
 
 func (a *api) Stop() error {

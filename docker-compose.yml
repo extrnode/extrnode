@@ -12,27 +12,26 @@ services:
       - postgres
     entrypoint: "scanner"
 
-  # extrnode-api:
-  #   container_name: extrnode-api
-  #   image: extrnode-be:latest
-  #   restart: always
-  #   tty: true
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - clickhouse
-  #     - postgres
-  #   entrypoint: "api"
+  extrnode-api:
+    container_name: extrnode-api
+    image: extrnode-go:latest
+    restart: always
+    tty: true
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    entrypoint: "api"
 
-  # swagger-ui:
-  #   image: swaggerapi/swagger-ui
-  #   container_name: "swagger-ui"
-  #   ports:
-  #     - "8082:8080"
-  #   volumes:
-  #     - ./swagger/swagger.json:/swagger.json
-  #   environment:
-  #     SWAGGER_JSON: /swagger.json
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: "swagger-ui"
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./swagger/swagger.json:/swagger.json
+    environment:
+      SWAGGER_JSON: /swagger.json
 
   postgres:
     container_name: extrnode-postgres

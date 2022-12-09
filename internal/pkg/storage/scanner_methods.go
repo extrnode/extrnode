@@ -16,7 +16,7 @@ type ScannerMethod struct {
 	ResponseValid bool      `pg:"smt_response_valid"`
 }
 
-//const scannerMethodsTable = "scanner.methods"
+const scannerMethodsTable = "scanner.methods"
 
 func (p *PgStorage) CreateScannerMethod(peerID, rpcMethodID int, date time.Time, timeConnect, timeResponse time.Duration, responseCode int, responseValid bool) error {
 	if peerID == 0 {

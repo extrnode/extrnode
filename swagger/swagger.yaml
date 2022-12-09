@@ -1,90 +1,130 @@
-openapi: 3.0.1
+openapi: 3.0.3
 info:
-  title: Swagger
+  title: Swagger ExtrNode
   termsOfService: http://swagger.io/terms/
-  version: 1.0.4
+  version: 1.0.0
+servers:
+  - url: https://api.extrnode.com/api/v1
+paths:
+  /endpoints:
+    get:
+      summary: Return endpoints
+      operationId: endpoints
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            maximum: 50
+            minimum: 1
+            type: integer
+            default: 10
+        - name: format
+          in: query
+          description: response format
+          schema:
+            type: string
+            enum: [ json, csv, haproxy ]
+        - name: is_rpc
+          in: query
+          schema:
+            type: boolean
+        - name: asn_country
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              example: us
+          explode: false
+          style: form
+        - name: version
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              example: 1.12.5
+          description: you can add '%' sign to the end of param. so 1.12% response will include 1.12.1, 1.12.2 etc
+          explode: false
+          style: form
+        - name: supported_method
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              example: getMultipleAccounts
+          explode: false
+          style: form
+      responses:
+        200:
+          description: Endpoints info responce array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EndpointsJson'
+            text/csv:
+              schema:
+                type: string
+                example: |
+                  endpoint,version,network,country,node_type
+                  127.0.0.1:80,1.14.10,192.168.0.1/24,United States,true
+            text/plain:
+              schema:
+                type: string
+                example: 127.0.0.1:80
+        400:
+          description: Bad request
+          content: {}
+        500:
+          description: Internal server error
+          content: {}
+
+components:
   schemas:
-    LiquidityDistribution:
+    EndpointsJson:
+      type: object
       properties:
-        So111...:
+        endpoint:
+          type: string
+          example: 127.0.0.1:80
+        version:
+          type: string
+          example: 1.14.10
+        supported_methods:
           type: array
           items:
-            $ref: "#/components/schemas/LiquidityDistributionByToken"
-    LiquidityDistributionByToken:
-      type: object
-      properties:
-        money_market:
-          type: string
-        percent:
-          type: number
-          format: float64
-    RewardAPR:
-      type: object
-      properties:
-        reward_token_mint:
-          type: string
-        reward_apr:
-          type: number
-          format: float64
-    MoneyMarketAPY:
-      type: object
-      properties:
-        protocol_name:
-          type: string
-        money_market:
-          type: string
-        reward_token:
-          type: string
-        token:
-          type: string
-        token_mint:
-          type: string
-        supply_apy:
-          type: number
-          format: float64
-        borrow_apy:
-          type: number
-          format: float64
-        supply_reward_apr:
+            type: string
+            example: [getMultipleAccounts, getSignatureStatuses]
+        unscanned_methods:
           type: array
           items:
-            $ref: '#/components/schemas/RewardAPR'
-        borrow_reward_apr:
-          type: array
-          items:
-            $ref: '#/components/schemas/RewardAPR'
-    Count:
-      type: object
-      properties:
-        count:
-          type: integer
-    IncomeAmount:
-      type: object
-      properties:
-        income_amount:
-          type: integer
-    Info:
-      type: object
-      properties:
-        tvl:
-          type: number
-          format: float64
-    UserTransaction:
-      type: object
-      properties:
-        user_account:
-          type: string
-        block_time:
-          type: string
-          format: date-time
-        asset:
-          type: string
-        operation:
-          type: string
-          enum: [deposit, withdraw, withdrawReq, claim]
-        amount:
-          type: integer
-        tx_signature:
-          type: string
-        instruction_idx:
+            type: string
+            example: [getMultipleAccounts, getSignatureStatuses]
+        node_type:
+          type: boolean
+        asn_info:
+          type: object
+          properties:
+            network:
+              type: string
+              example: 192.168.0.1/24
+            isp:
+              type: string
+              example: AMAZON-AES, US
+            country:
+              type: object
+              properties:
+                alpha2:
+                  type: string
+                  example: US
+                alpha3:
+                  type: string
+                  example: USA
+                name:
+                  type: string
+                  example: United States
+        scan_time:
           type: integer

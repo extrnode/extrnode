@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-export APP_NAME=$(shell basename ${PWD})
+export APP_NAME=extrnode-go
 export APP_VERSION=latest
 
 build:
