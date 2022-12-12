@@ -59,3 +59,20 @@ func (p *PgStorage) GetBlockchains() (res []Blockchain, err error) {
 
 	return res, nil
 }
+
+func (p *PgStorage) GetBlockchainByName(name string) (res Blockchain, err error) {
+	query, args, err := sq.Select("blc_id, blc_name").
+		From(blockchainsTable).
+		Where("blc_name = ?", name).
+		ToSql()
+	if err != nil {
+		return res, err
+	}
+
+	_, err = p.db.QueryOne(&res, query, args...)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}

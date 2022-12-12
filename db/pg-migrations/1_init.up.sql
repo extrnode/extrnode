@@ -89,7 +89,7 @@ create table if not exists peers
 		constraint peers_ips_ip_id_fk
 			references ips
 				on update cascade on delete restrict,
-	prs_port smallint not null,
+	prs_port integer not null,
 	prs_version varchar(8) not null,
 	prs_is_rpc boolean default false not null,
 	prs_is_alive boolean default false not null,
@@ -197,3 +197,9 @@ INSERT INTO rpc.methods (mtd_id, blc_id, mtd_name) VALUES (20, 1, 'getMinimumBal
 INSERT INTO rpc.methods (mtd_id, blc_id, mtd_name) VALUES (21, 1, 'isBlockhashValid');
 INSERT INTO rpc.methods (mtd_id, blc_id, mtd_name) VALUES (22, 1, 'getTransactionCount');
 INSERT INTO rpc.methods (mtd_id, blc_id, mtd_name) VALUES (23, 1, 'getTokenAccountsByOwner');
+
+-- initial solana host http://api.mainnet-beta.solana.com
+INSERT INTO geo.countries (cnt_id, cnt_alpha2, cnt_alpha3, cnt_name) VALUES (1, 'NL', 'NLD', 'Netherlands');
+INSERT INTO geo.networks (ntw_id, cnt_id, ntw_mask, ntw_as, ntw_name) VALUES (1, 1, '178.237.58.0/24', 56504, 'HOSTCIRCLE-L-, NL');
+INSERT INTO ips (ip_id, ntw_id, ip_addr) VALUES (1, 1, '178.237.58.144');
+INSERT INTO peers (prs_id, blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl) VALUES (1, 1, 1, 80, '1.14.10', true, true, false);

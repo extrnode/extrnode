@@ -53,6 +53,8 @@ func (s *scanner) Run() error {
 }
 
 func (s *scanner) runScanner(ctx context.Context) {
+	var err error
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -63,21 +65,28 @@ func (s *scanner) runScanner(ctx context.Context) {
 			var adapter adapters.Adapter
 			switch task.chain {
 			case chainTypeSolana:
-				adapter = &solana.SolanaAdapter{}
-			}
-
-			if adapter == nil {
+				adapter, err = solana.NewSolanaAdapter(s.ctx, s.storage)
+				if err != nil {
+					log.Logger.Scanner.Errorf("NewSolanaAdapter (%s %s): %s", task.chain, task.host, err)
+					continue
+				}
+			default:
 				log.Logger.Scanner.Errorf("adapter not found for chain: %s", task.chain)
 				continue
 			}
 
-			err := adapter.Scan(task.host)
+			err = adapter.GetNewNodes(task.host)
 			if err != nil {
-				log.Logger.Scanner.Errorf("scanner error. node %s. chain %s: %s", task.host, task.chain, err)
+				log.Logger.Scanner.Errorf("GetNewNodes (%s %s): %s", task.chain, task.host, err)
+				// continue not needed
+			}
+
+			err = adapter.Scan(task.host)
+			if err != nil {
+				log.Logger.Scanner.Errorf("Scan (%s %s): %s", task.chain, task.host, err)
 			}
 		}
 	}
-
 }
 
 func (s *scanner) runWithWaitGroup(ctx context.Context, fn func(context.Context)) {

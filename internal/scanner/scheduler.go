@@ -2,12 +2,13 @@ package scanner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"extrnode-be/internal/pkg/log"
 )
 
-const scannerInterval = time.Second * 5
+const scannerInterval = time.Minute * 10
 
 type chainType string
 
@@ -20,8 +21,21 @@ type scannerTask struct {
 
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		// TODO: get from database all hosts that need to be parsed and stream to worker channel
-		s.taskQueue <- scannerTask{host: "178.237.58.142", chain: chainTypeSolana}
+		res, err := s.storage.GetPeers()
+		if err != nil {
+			log.Logger.Scanner.Fatalf("GetPeers: %s", err)
+		}
+
+		log.Logger.Scanner.Debugf("scheduleScans: get %d peers. Creating scanner tasks", len(res))
+
+		for _, r := range res {
+			schema := "http://"
+			if r.IsSSL {
+				schema = "https://"
+			}
+
+			s.taskQueue <- scannerTask{host: fmt.Sprintf("%s%s:%d", schema, r.Address.String(), r.Port), chain: chainType(r.BlockchainName)}
+		}
 
 		select {
 		case <-ctx.Done():
