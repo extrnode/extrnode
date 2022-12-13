@@ -42,6 +42,8 @@ func (a *SolanaAdapter) HostAsPeer(host string) (hostPeer storage.PeerWithIp, er
 
 func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 	log.Logger.Scanner.Debugf("start ScanMethods")
+	defer log.Logger.Scanner.Debugf("fin ScanMethods")
+
 	now := time.Now()
 	methods, err := a.storage.GetRpcMethodsMapByBlockchainID(a.blockchainID)
 	if err != nil {
