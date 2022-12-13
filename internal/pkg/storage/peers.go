@@ -51,7 +51,7 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 		From(peersTable).
 		Where("blc_id = ? AND ip_id = ? AND prs_port = ?", blockchainID, ipID, port).ToSql()
 	if err != nil {
-		return id, err
+		return id, fmt.Errorf("select: %s", err)
 	}
 
 	m := Peer{}

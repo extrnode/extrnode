@@ -78,7 +78,7 @@ func (s *SolanaAdapter) insertData(records []models.NodeInfo) error {
 
 		ipID, err := s.storage.GetOrCreateIP(networkID, r.IP)
 		if err != nil {
-			return fmt.Errorf("GetOrCreateIP: %s; req %+v; ipID %d", err, r, ipID)
+			return fmt.Errorf("GetOrCreateIP: %s; req %+v; networkID %d", err, r, networkID)
 		}
 
 		_, err = s.storage.GetOrCreatePeer(s.blockchainID, ipID, r.Port, r.Version, false, false, false)
