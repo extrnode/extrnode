@@ -90,10 +90,11 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 			resCsv[i] = models.EndpointCsv{
 				Endpoint: r.Endpoint,
 				Version:  r.Version,
+				As:       r.AsnInfo.As,
 				Network:  r.AsnInfo.Network,
 				Country:  r.AsnInfo.Country.Name,
 				Isp:      r.AsnInfo.Isp,
-				NodeType: r.NodeType,
+				IsRpc:    r.IsRpc,
 			}
 		}
 		return csvResp(ctx, resCsv, "")

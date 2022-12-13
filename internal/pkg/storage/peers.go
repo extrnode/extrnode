@@ -3,12 +3,12 @@ package storage
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/go-pg/pg/v10"
 
 	"extrnode-be/internal/models"
-	"extrnode-be/internal/pkg/log"
 )
 
 type (
@@ -96,26 +96,24 @@ func (p *PgStorage) GetPeersByBlockchainID(blockchainID int) (res []PeerWithIp, 
 }
 
 func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
+	for i := range asnCountries {
+		asnCountries[i] = strings.ToUpper(asnCountries[i])
+	}
+
 	q := sq.Select(`CONCAT(ip_addr, ':', prs_port)  AS endpoint,
 		   prs_version 										  AS version,
-		   prs_is_rpc 										  AS node_type,
+		   prs_is_rpc 										  AS is_rpc,
 		   json_agg(rpc.methods.mtd_name)                     AS supported_methods,
-		   json_build_object('network', ntw_mask, 'isp', ntw_name, 'country',
-									  json_build_object('alpha2', cnt_alpha2, 'alpha3', cnt_alpha3, 'name',
-														cnt_name))  AS asn_info,
-		   COALESCE(SUM(scanner.methods.smt_time_response_ms), 0)   AS scan_time`).
+		   json_build_object('network', ntw_mask, 'isp', ntw_name, 'ntw_as', ntw_as, 'country',
+									  json_build_object('alpha2', cnt_alpha2, 'alpha3', cnt_alpha3, 'name', cnt_name)) AS asn_info`).
 		From(peersTable).
 		LeftJoin(fmt.Sprintf("%s USING (ip_id)", ipsTable)).
 		LeftJoin(fmt.Sprintf("%s USING (ntw_id)", geoNetworksTable)).
 		LeftJoin(fmt.Sprintf("%s USING (cnt_id)", geoCountriesTable)).
 		LeftJoin(fmt.Sprintf("%s USING (prs_id)", rpcPeersMethodsTable)).
 		LeftJoin(fmt.Sprintf("%s USING (mtd_id)", rpcMethodsTable)).
-		LeftJoin(fmt.Sprintf(`%s ON peers.prs_id = scanner.methods.prs_id AND scanner.methods.smt_date =
-                                                                                (SELECT MAX(smt_date)
-                                                                                 FROM scanner.methods
-                                                                                 WHERE peers.prs_id = methods.prs_id)`, scannerMethodsTable)).
 		Where("prs_is_alive IS TRUE AND peers.blc_id = (SELECT blc_id FROM blockchains WHERE blc_name = ?)", blockchain).
-		GroupBy("peers.prs_id, ip_addr, ntw_mask, ntw_name, cnt_alpha2, cnt_alpha3, cnt_name")
+		GroupBy("peers.prs_id, ip_addr, ntw_mask, ntw_name, ntw_as, cnt_alpha2, cnt_alpha3, cnt_name")
 	if isRpc != nil {
 		q = q.Where("prs_is_rpc = ?", *isRpc)
 	}
@@ -137,7 +135,6 @@ func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnC
 		return res, err
 	}
 
-	log.Logger.Api.Debugf("%s", query)
 	_, err = p.db.Query(&res, query, args...)
 	if err != nil {
 		return res, err
