@@ -76,9 +76,8 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 func (p *PgStorage) GetPeerByPortAndIP(port int, ip net.IP) (res PeerWithIp, err error) {
 	query, args, err := sq.Select("ip_id, ip_addr, prs_id, blc_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl").
 		From(ipsTable).
-		Where("ip_addr = ?", ip).
+		Where("prs_port = ? AND ip_addr = ?", port, ip).
 		Join(fmt.Sprintf("%s USING(ip_id)", peersTable)).
-		Where("prs_port = ?", port).
 		ToSql()
 	if err != nil {
 		return res, err

@@ -29,7 +29,7 @@ func (p *PgStorage) CreateRpcPeerMethod(peerID, rpcMethodID int) error {
 		return err
 	}
 
-	_, err = p.db.Exec(query, args...)
+	_, err = p.db.ExecOne(query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return fmt.Errorf("select: %s", err)
 	}
