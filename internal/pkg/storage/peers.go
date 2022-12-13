@@ -24,8 +24,8 @@ type (
 	}
 
 	PeerWithIp struct {
-		Peer
 		Address net.IP `pg:"ip_addr"`
+		Peer
 	}
 	PeerWithIpAndBlockchain struct {
 		Peer
@@ -73,15 +73,12 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetPeersByBlockchainID(blockchainID int) (res []PeerWithIp, err error) {
-	if blockchainID == 0 {
-		return nil, fmt.Errorf("empty blockchainID")
-	}
-
-	query, args, err := sq.Select("prs_id, blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, ip_addr").
-		From(peersTable).
-		Where("blc_id = ?", blockchainID).
-		Join(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
+func (p *PgStorage) GetPeerByPortAndIP(port int, ip net.IP) (res PeerWithIp, err error) {
+	query, args, err := sq.Select("ip_id, ip_addr, prs_id, blc_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl").
+		From(ipsTable).
+		Where("ip_addr = ?", ip).
+		Join(fmt.Sprintf("%s USING(ip_id)", peersTable)).
+		Where("prs_port = ?", port).
 		ToSql()
 	if err != nil {
 		return res, err
@@ -93,6 +90,21 @@ func (p *PgStorage) GetPeersByBlockchainID(blockchainID int) (res []PeerWithIp, 
 	}
 
 	return res, nil
+}
+
+func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL bool) (err error) {
+	if peerID == 0 {
+		return fmt.Errorf("empty peerID")
+	}
+
+	query := `UPDATE peers SET prs_is_rpc = ?, prs_is_alive = ?, prs_is_ssl = ?  
+			WHERE prs_id = ?`
+	_, err = p.db.Exec(query, isRpc, isAlive, isSSL, peerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {

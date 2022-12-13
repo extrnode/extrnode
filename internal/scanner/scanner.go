@@ -75,7 +75,7 @@ func (s *scanner) runScanner(ctx context.Context) {
 				continue
 			}
 
-			err = adapter.GetNewNodes(task.host)
+			err = adapter.GetNewNodes(task.host, task.isAlive)
 			if err != nil {
 				log.Logger.Scanner.Errorf("GetNewNodes (%s %s): %s", task.chain, task.host, err)
 				// continue not needed

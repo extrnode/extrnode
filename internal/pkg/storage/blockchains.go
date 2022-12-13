@@ -76,3 +76,4 @@ func (p *PgStorage) GetBlockchainByName(name string) (res Blockchain, err error)
 
 	return res, nil
 }
+

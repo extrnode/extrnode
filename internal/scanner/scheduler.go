@@ -15,8 +15,9 @@ type chainType string
 const chainTypeSolana = "solana"
 
 type scannerTask struct {
-	host  string
-	chain chainType
+	host    string
+	isAlive bool
+	chain   chainType
 }
 
 func (s *scanner) scheduleScans(ctx context.Context) {
@@ -34,7 +35,7 @@ func (s *scanner) scheduleScans(ctx context.Context) {
 				schema = "https://"
 			}
 
-			s.taskQueue <- scannerTask{host: fmt.Sprintf("%s%s:%d", schema, r.Address.String(), r.Port), chain: chainType(r.BlockchainName)}
+			s.taskQueue <- scannerTask{host: fmt.Sprintf("%s%s:%d", schema, r.Address.String(), r.Port), isAlive: r.IsAlive, chain: chainType(r.BlockchainName)}
 		}
 
 		select {

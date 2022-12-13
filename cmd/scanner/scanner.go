@@ -57,7 +57,7 @@ func main() {
 	go func() {
 		err := app.Run()
 		if err != nil {
-			log.Logger.Scanner.Fatalf("AccountsConsumer: %s", err)
+			log.Logger.Scanner.Fatalf("Scanner: %s", err)
 		}
 	}()
 
