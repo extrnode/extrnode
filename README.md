@@ -1,7 +1,7 @@
 # Extrnode-go
 
 ### Serve service
-Place filled [config.yml](config_example.yml), [.env](.env.example) file into `.secrets` folder and Run
+Place filled [config.yml](config_example.yml) file into `.secrets` folder, [.env](.env.example) file into project root folder and Run
 
     docker-compose up -d extrnode-scanner
 ### Serve API documentation
