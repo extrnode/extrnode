@@ -8,7 +8,7 @@ import (
 	"extrnode-be/internal/pkg/log"
 )
 
-const scannerInterval = time.Minute * 10
+const scannerInterval = time.Hour * 4
 
 type chainType string
 
