@@ -20,10 +20,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "maximum": 50,
+              "maximum": 1000,
               "minimum": 1,
               "type": "integer",
-              "default": 10
+              "default": 50
             }
           },
           {
