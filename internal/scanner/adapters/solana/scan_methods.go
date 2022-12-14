@@ -7,9 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gagliardetto/solana-go"
+
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 )
+
+var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
 func (a *SolanaAdapter) HostAsPeer(host string) (hostPeer storage.PeerWithIp, err error) {
 	hostURL, err := url.Parse(host)
@@ -58,7 +62,7 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 			return fmt.Errorf("CreateScannerPeer: %s", err)
 		}
 
-		err = a.storage.UpdatePeerByID(host.ID, false, false, isSSL)
+		err = a.storage.UpdatePeerByID(host.ID, false, false, isSSL, host.IsMainNet)
 		if err != nil {
 			return fmt.Errorf("UpdatePeerByID: %s", err)
 		}
@@ -99,7 +103,12 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 		return fmt.Errorf("CreateScannerPeer: %s", err)
 	}
 
-	err = a.storage.UpdatePeerByID(host.ID, isRpc, isAlive, isSSL)
+	hash, err := rpcClient.GetGenesisHash(a.ctx)
+	if err != nil {
+		return fmt.Errorf("GetGenesisHash: %s", err)
+	}
+
+	err = a.storage.UpdatePeerByID(host.ID, isRpc, isAlive, isSSL, hash == solanaMainNetGenesisHash)
 	if err != nil {
 		return fmt.Errorf("UpdatePeerByID: %s", err)
 	}
