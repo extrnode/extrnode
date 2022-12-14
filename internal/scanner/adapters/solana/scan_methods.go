@@ -77,18 +77,23 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 
 		if responseValid {
 			isAlive = true
+			err = a.storage.CreateRpcPeerMethod(host.ID, methods[m])
+			if err != nil {
+				return fmt.Errorf("CreateRpcPeerMethod: %s", err)
+			}
 		} else {
 			isRpc = false
+			err = a.storage.DeleteRpcPeerMethod(host.ID, methods[m])
+			if err != nil {
+				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
+			}
 		}
 		err = a.storage.CreateScannerMethod(host.ID, methods[m], now, 0, responseTime, statusCode, responseValid)
 		if err != nil {
 			return fmt.Errorf("CreateScannerMethod: %s", err)
 		}
-		err = a.storage.CreateRpcPeerMethod(host.ID, methods[m])
-		if err != nil {
-			return fmt.Errorf("CreateRpcPeerMethod: %s", err)
-		}
 	}
+
 	err = a.storage.CreateScannerPeer(host.ID, now, 0, isAlive)
 	if err != nil {
 		return fmt.Errorf("CreateScannerPeer: %s", err)

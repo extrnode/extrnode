@@ -19,7 +19,7 @@ func (p *PgStorage) CreateRpcPeerMethod(peerID, rpcMethodID int) error {
 		return fmt.Errorf("empty peerID")
 	}
 	if rpcMethodID == 0 {
-		return fmt.Errorf("empty peerID")
+		return fmt.Errorf("empty rpcMethodID")
 	}
 
 	query, args, err := sq.Select("prs_id, mtd_id").
@@ -42,6 +42,28 @@ func (p *PgStorage) CreateRpcPeerMethod(peerID, rpcMethodID int) error {
 		if err != nil {
 			return fmt.Errorf("insert: %s", err)
 		}
+	}
+
+	return nil
+}
+
+func (p *PgStorage) DeleteRpcPeerMethod(peerID, rpcMethodID int) error {
+	if peerID == 0 {
+		return fmt.Errorf("empty peerID")
+	}
+	if rpcMethodID == 0 {
+		return fmt.Errorf("empty rpcMethodID")
+	}
+
+	query, args, err := sq.Delete(rpcPeersMethodsTable).
+		Where("prs_id = ? AND mtd_id = ?", peerID, rpcMethodID).ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = p.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("delete: %s", err)
 	}
 
 	return nil
