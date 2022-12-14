@@ -2,19 +2,20 @@ package storage
 
 import (
 	"fmt"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/go-pg/pg/v10"
 )
 
 type RpcPeerMethod struct {
-	PeerID      int `pg:"prs_id"` // Peer
-	RpcMethodID int `pg:"mtd_id"` // RpcMethod
+	PeerID       int `pg:"prs_id"` // Peer
+	RpcMethodID  int `pg:"mtd_id"` // RpcMethod
+	ResponseTime int `pg:"pmd_response_time_ms"`
 }
 
 const rpcPeersMethodsTable = "rpc.peers_methods"
 
-func (p *PgStorage) CreateRpcPeerMethod(peerID, rpcMethodID int) error {
+func (p *PgStorage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time.Duration) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -22,26 +23,11 @@ func (p *PgStorage) CreateRpcPeerMethod(peerID, rpcMethodID int) error {
 		return fmt.Errorf("empty rpcMethodID")
 	}
 
-	query, args, err := sq.Select("prs_id, mtd_id").
-		From(rpcPeersMethodsTable).
-		Where("prs_id = ? AND mtd_id = ?", peerID, rpcMethodID).ToSql()
+	query := `INSERT INTO rpc.peers_methods (prs_id, mtd_id, pmd_response_time_ms)
+			VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT peers_methods_pk DO UPDATE SET pmd_response_time_ms = ?`
+	_, err := p.db.Exec(query, peerID, rpcMethodID, responseTime.Milliseconds(), responseTime.Milliseconds())
 	if err != nil {
 		return err
-	}
-
-	_, err = p.db.ExecOne(query, args...)
-	if err != nil && err != pg.ErrNoRows {
-		return fmt.Errorf("select: %s", err)
-	}
-
-	if err == pg.ErrNoRows {
-		query = `INSERT INTO rpc.peers_methods (prs_id, mtd_id)
-			VALUES (?, ?)`
-
-		_, err = p.db.Exec(query, peerID, rpcMethodID)
-		if err != nil {
-			return fmt.Errorf("insert: %s", err)
-		}
 	}
 
 	return nil

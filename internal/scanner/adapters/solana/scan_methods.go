@@ -77,7 +77,7 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 
 		if responseValid {
 			isAlive = true
-			err = a.storage.CreateRpcPeerMethod(host.ID, methods[m])
+			err = a.storage.UpsertRpcPeerMethod(host.ID, methods[m], responseTime)
 			if err != nil {
 				return fmt.Errorf("CreateRpcPeerMethod: %s", err)
 			}

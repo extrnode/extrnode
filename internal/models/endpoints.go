@@ -2,13 +2,15 @@ package models
 
 type (
 	Endpoint struct {
-		Endpoint         string   `json:"endpoint" pg:"endpoint"`
-		Version          string   `json:"version"  pg:"version"`
-		SupportedMethods []string `json:"supported_methods" pg:"supported_methods"`
+		Endpoint         string `json:"endpoint" pg:"endpoint"`
+		Version          string `json:"version"  pg:"version"`
+		SupportedMethods []struct {
+			Name         string `json:"name"  pg:"name"`
+			ResponseTime int64  `json:"response_time"  pg:"response_time"`
+		} `json:"supported_methods" pg:"supported_methods"`
 		//UnscannedMethods []string `json:"unscanned_methods" pg:"unscanned_methods"`
-		IsRpc    bool    `json:"is_rpc" pg:"is_rpc"`
-		AsnInfo  AsnInfo `json:"asn_info" pg:"asn_info"`
-		ScanTime int64   `json:"scan_time" pg:"scan_time"`
+		IsRpc   bool    `json:"is_rpc" pg:"is_rpc"`
+		AsnInfo AsnInfo `json:"asn_info" pg:"asn_info"`
 	}
 	EndpointCsv struct {
 		Endpoint string `csv:"endpoint"`

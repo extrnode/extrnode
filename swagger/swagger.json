@@ -141,21 +141,18 @@
           "supported_methods": {
             "type": "array",
             "items": {
-              "type": "string",
-              "example": [
-                "getMultipleAccounts",
-                "getSignatureStatuses"
-              ]
-            }
-          },
-          "unscanned_methods": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "example": [
-                "getMultipleAccounts",
-                "getSignatureStatuses"
-              ]
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "getSignatureStatuses"
+                },
+                "response_time": {
+                  "type": "integer",
+                  "example": 1000,
+                  "description": "in milliseconds"
+                }
+              }
             }
           },
           "is_rpc": {
@@ -194,9 +191,6 @@
                 }
               }
             }
-          },
-          "scan_time": {
-            "type": "integer"
           }
         }
       }
