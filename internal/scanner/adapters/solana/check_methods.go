@@ -180,7 +180,13 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 				blockhash.Value.Blockhash,
 				solana.TransactionPayer(testKey3),
 			)
-			if _, err = rpcClient.SendTransaction(ctx, tx); err == nil || err.(*jsonrpc.RPCError).Code == sendTxSanitizeErr {
+
+			_, err = rpcClient.SendTransaction(ctx, tx)
+			if err != nil {
+				if rpcErr, ok := err.(*jsonrpc.RPCError); ok && rpcErr.Code == sendTxSanitizeErr {
+					out = true
+				}
+			} else {
 				out = true
 			}
 		}
