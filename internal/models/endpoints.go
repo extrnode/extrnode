@@ -9,10 +9,10 @@ type (
 			ResponseTime int64  `json:"response_time"  pg:"response_time"`
 		} `json:"supported_methods" pg:"supported_methods"`
 		//UnscannedMethods []string `json:"unscanned_methods" pg:"unscanned_methods"`
+		IsAlive     bool    `json:"is_alive" pg:"is_alive"`
 		IsRpc       bool    `json:"is_rpc" pg:"is_rpc"`
 		IsValidator bool    `json:"is_validator" pg:"is_validator"`
 		AsnInfo     AsnInfo `json:"asn_info" pg:"asn_info"`
-
 	}
 	EndpointCsv struct {
 		Endpoint    string `csv:"endpoint"`
@@ -21,6 +21,7 @@ type (
 		Network     string `csv:"network"`
 		Country     string `csv:"country"`
 		Isp         string `csv:"isp"`
+		IsAlive     bool   `csv:"is_alive"`
 		IsRpc       bool   `csv:"is_rpc"`
 		IsValidator bool   `csv:"is_validator"`
 	}

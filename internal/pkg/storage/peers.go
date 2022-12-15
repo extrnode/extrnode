@@ -106,13 +106,17 @@ func (p *PgStorage) UpdatePeerVersionAndNodePubkey(peerID int, version, nodePubk
 	return nil
 }
 
-func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
+func (p *PgStorage) GetEndpoints(blockchainID, limit int, isAlive, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
+	if blockchainID == 0 {
+		return nil, fmt.Errorf("empty blockchainID")
+	}
 	for i := range asnCountries {
 		asnCountries[i] = strings.ToUpper(asnCountries[i])
 	}
 
 	q := sq.Select(`CONCAT(ip_addr, ':', prs_port)  AS endpoint,
 		   prs_version 										  AS version,
+		   prs_is_alive 									  AS is_alive,
 		   prs_is_rpc 										  AS is_rpc,
 		   prs_is_validator 								  AS is_validator,
 		   json_agg(json_build_object('name', rpc.methods.mtd_name, 'response_time', rpc.peers_methods.pmd_response_time_ms)) AS supported_methods,
@@ -124,8 +128,11 @@ func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc, isValidato
 		LeftJoin(fmt.Sprintf("%s USING (cnt_id)", geoCountriesTable)).
 		LeftJoin(fmt.Sprintf("%s USING (prs_id)", rpcPeersMethodsTable)).
 		LeftJoin(fmt.Sprintf("%s USING (mtd_id)", rpcMethodsTable)).
-		Where("prs_is_alive IS TRUE AND prs_is_main_net IS TRUE AND peers.blc_id = (SELECT blc_id FROM blockchains WHERE blc_name = ?)", blockchain).
+		Where("prs_is_main_net IS TRUE AND peers.blc_id = ?", blockchainID).
 		GroupBy("peers.prs_id, ip_addr, ntw_mask, ntw_name, ntw_as, cnt_alpha2, cnt_alpha3, cnt_name")
+	if isAlive != nil {
+		q = q.Where("prs_is_alive = ?", *isAlive)
+	}
 	if isRpc != nil {
 		q = q.Where("prs_is_rpc = ?", *isRpc)
 	}

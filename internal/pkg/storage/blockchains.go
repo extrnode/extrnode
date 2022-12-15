@@ -45,16 +45,22 @@ func (p *PgStorage) GetOrCreateBlockchain(name string) (id int, err error) {
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetBlockchains() (res []Blockchain, err error) {
+func (p *PgStorage) GetBlockchainsMap() (res map[string]int, err error) {
 	query, args, err := sq.Select("blc_id, blc_name").
 		From(blockchainsTable).ToSql()
 	if err != nil {
 		return res, err
 	}
 
-	_, err = p.db.Query(&res, query, args...)
+	var ms []Blockchain
+	_, err = p.db.Query(&ms, query, args...)
 	if err != nil {
 		return res, err
+	}
+
+	res = make(map[string]int)
+	for _, m := range ms {
+		res[m.Name] = m.ID
 	}
 
 	return res, nil
@@ -76,4 +82,3 @@ func (p *PgStorage) GetBlockchainByName(name string) (res Blockchain, err error)
 
 	return res, nil
 }
-

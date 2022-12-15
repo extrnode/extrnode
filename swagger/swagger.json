@@ -40,11 +40,28 @@
             }
           },
           {
+            "name": "is_alive",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "is_alive is true means that endpoint supports at least one rpc method"
+          },
+          {
             "name": "is_rpc",
             "in": "query",
             "schema": {
               "type": "boolean"
-            }
+            },
+            "description": "is_rpc is true means that endpoint supports all top20 rpc methods"
+          },
+          {
+            "name": "is_validator",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "is_validator is true means that endpoint is acting as a validator"
           },
           {
             "name": "asn_country",
@@ -102,7 +119,7 @@
               "text/csv": {
                 "schema": {
                   "type": "string",
-                  "example": "endpoint,version,ntw_as,network,country,is_rpc\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true\n"
+                  "example": "endpoint,version,ntw_as,network,country,is_alive,is_rpc,is_validator\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,true,false\n"
                 }
               },
               "text/plain": {
@@ -155,7 +172,13 @@
               }
             }
           },
+          "is_alive": {
+            "type": "boolean"
+          },
           "is_rpc": {
+            "type": "boolean"
+          },
+          "is_validator": {
             "type": "boolean"
           },
           "asn_info": {

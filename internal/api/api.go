@@ -23,6 +23,7 @@ type api struct {
 	ctx                    context.Context
 	ctxCancel              context.CancelFunc
 	supportedOutputFormats map[string]struct{}
+	blockchainIDs          map[string]int
 }
 
 const (
@@ -40,6 +41,12 @@ func NewAPI(cfg config.Config) (*api, error) {
 		return nil, fmt.Errorf("storage init: %s", err)
 	}
 
+	blockchainsMap, err := s.GetBlockchainsMap()
+	if err != nil {
+		cancelFunc()
+		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
+	}
+
 	api := &api{
 		port:    uint64(cfg.API.Port),
 		router:  echo.New(),
@@ -53,6 +60,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 			csvOutputFormat:     {},
 			haproxyOutputFormat: {},
 		},
+		blockchainIDs: blockchainsMap,
 	}
 
 	api.initApiHandlers()
