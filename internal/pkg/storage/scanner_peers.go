@@ -13,7 +13,7 @@ type ScannerPeer struct {
 	IsAlive     bool      `pg:"spr_is_alive"`
 }
 
-//const scannerPeersTable = "scanner.peers"
+const scannerPeersTable = "scanner.peers"
 
 func (p *PgStorage) CreateScannerPeer(peerID int, date time.Time, timeConnect time.Duration, isAlive bool) error {
 	if peerID == 0 {

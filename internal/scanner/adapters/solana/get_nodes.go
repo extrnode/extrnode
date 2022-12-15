@@ -38,7 +38,7 @@ func (a *SolanaAdapter) getNodes(host string) (nodes []models.NodeInfo, err erro
 	rpcClient := createRpcWithTimeout(host)
 	clusterNodes, err := rpcClient.GetClusterNodes(a.ctx)
 	if err != nil {
-		return nodes, fmt.Errorf("GetClusterNodes: %s", err)
+		return nodes, fmt.Errorf("GetClusterNodes: %s", reformatSolanaRpcError(err))
 	}
 
 	log.Logger.Scanner.Debugf("getNodes: host %s got %d cluster nodes", host, len(clusterNodes))

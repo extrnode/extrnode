@@ -13,9 +13,6 @@ import (
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
 func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error {
-	log.Logger.Scanner.Debugf("start ScanMethods")
-	defer log.Logger.Scanner.Debugf("fin ScanMethods")
-
 	now := time.Now()
 	methods, err := a.storage.GetRpcMethodsMapByBlockchainID(a.blockchainID)
 	if err != nil {
@@ -25,7 +22,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	_, isValidator := a.voteAccountsNodePubkey[peer.NodePubkey] // peer.NodePubkey can be empty on first iteration
 	rpcClient, isSSL, err := a.getValidRpc(peer)
 	if err != nil {
-		log.Logger.Scanner.Errorf("ScanMethods finished with error: %s", err)
+		log.Logger.Scanner.Errorf("ScanMethods finished with error: %s", reformatSolanaRpcError(err))
 		err = a.storage.CreateScannerPeer(peer.ID, now, 0, false)
 		if err != nil {
 			return fmt.Errorf("CreateScannerPeer 1: %s", err)

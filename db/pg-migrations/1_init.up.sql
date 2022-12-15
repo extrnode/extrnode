@@ -50,7 +50,7 @@ create table if not exists geo.networks
 				on update cascade on delete restrict,
 	ntw_mask cidr not null,
 	ntw_as integer,
-	ntw_name varchar(128) not null
+	ntw_name varchar(256) not null
 );
 create unique index if not exists networks_cnt_id_ntw_mask_uindex
     on geo.networks (cnt_id, ntw_mask);
@@ -93,7 +93,10 @@ create table if not exists peers
 	prs_version varchar(8) not null,
 	prs_is_rpc boolean default false not null,
 	prs_is_alive boolean default false not null,
-	prs_is_ssl boolean default false not null
+	prs_is_ssl boolean default false not null,
+    prs_is_main_net boolean default true not null,
+    prs_node_pubkey varchar(44) default '' not null,
+    prs_is_validator boolean default false not null
 );
 comment on table peers is 'todo:
 source of data (rpc fetch, logs) ';
@@ -105,8 +108,8 @@ create index peers_ip_id_index
     on peers (ip_id);
 create index peers_prs_version_index
     on peers (prs_version);
-create index peers_prs_is_alive_blc_id_index
-    on peers (prs_is_alive, blc_id);
+create index peers_prs_is_alive_prs_is_main_net_blc_id_index
+    on peers (prs_is_alive, prs_is_main_net, blc_id);
 create index peers_prs_is_rpc_index
     on peers (prs_is_rpc);
 
@@ -120,6 +123,7 @@ create table if not exists rpc.peers_methods
 		constraint peers_methods_methods_mtd_id_fk
 			references rpc.methods
 				on update cascade on delete restrict,
+    pmd_response_time_ms integer default 0 not null,
 	constraint peers_methods_pk
 		primary key (prs_id, mtd_id)
 );
@@ -202,4 +206,4 @@ INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchai
 INSERT INTO geo.countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('NL', 'NLD', 'Netherlands');
 INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo.countries WHERE cnt_alpha2 = 'NL'), '178.237.58.0/24', 56504, 'HOSTCIRCLE-L-, NL');
 INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo.networks WHERE ntw_mask = '178.237.58.0/24'), '178.237.58.144');
-INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '178.237.58.0/24') AND ip_addr = '178.237.58.144'), 80, '1.14.10', true, true, false);
+INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '178.237.58.0/24') AND ip_addr = '178.237.58.144'), 80, '1.14.10', true, true, false, true);

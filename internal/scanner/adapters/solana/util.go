@@ -15,7 +15,7 @@ import (
 
 var (
 	defaultMaxIdleConnsPerHost = 1
-	defaultTimeout             = 10 * time.Second
+	defaultTimeout             = 15 * time.Second
 	defaultKeepAlive           = 100 * time.Second
 )
 
@@ -51,8 +51,12 @@ func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (*rpc.
 	_, err := rpcClient.GetVersion(a.ctx)
 	if err != nil {
 		rpcClient = createRpcWithTimeout(createNodeUrl(peer, true))
-		_, err := rpcClient.GetVersion(a.ctx)
-		return rpcClient, true, err
+		_, err = rpcClient.GetVersion(a.ctx)
+		if err != nil {
+			return rpcClient, false, err // don't change isSsl in err case
+		}
+
+		return rpcClient, true, nil
 	}
 
 	return rpcClient, false, nil
@@ -65,4 +69,16 @@ func createNodeUrl(p storage.PeerWithIpAndBlockchain, isSSL bool) string {
 	}
 
 	return fmt.Sprintf("%s%s:%d", schema, p.Address.String(), p.Port)
+}
+
+func reformatSolanaRpcError(err error) error {
+	if err == nil {
+		return err
+	}
+	rpcErr, ok := err.(*jsonrpc.RPCError)
+	if !ok {
+		return err
+	}
+
+	return fmt.Errorf("rpcErr: code %d %s", rpcErr.Code, rpcErr.Message)
 }

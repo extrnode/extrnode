@@ -44,25 +44,23 @@ const (
 	sendTxSanitizeErr = -32602
 )
 
-func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Context) (out bool, responseTime time.Duration, code int, IsMethodCorrect error) {
+var (
+	testKey2         = solana.MustPublicKeyFromBase58("EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks")
+	testKey3         = solana.MustPublicKeyFromBase58("9qGSDWfWn5a7JkvPbuwvkSohMz4VDH6ck7BRJxZFTMbQ")
+	testMint         = solana.MustPublicKeyFromBase58("Hg35Vd8K3BS2pLB3xwC2WqQV8pmpCm3oNRGYP1PEpmCM")
+	testTokenAccount = solana.MustPublicKeyFromBase58("7rEjmuTevAyiY7iUDWT6ucBNHXT2XqjcfQqKvshYrVsh")
+)
 
-	testKey := solana.SystemProgramID
-	testKey2 := solana.MustPublicKeyFromBase58("EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks")
-	testKey3 := solana.MustPublicKeyFromBase58("9qGSDWfWn5a7JkvPbuwvkSohMz4VDH6ck7BRJxZFTMbQ")
-	testMint := solana.MustPublicKeyFromBase58("Hg35Vd8K3BS2pLB3xwC2WqQV8pmpCm3oNRGYP1PEpmCM")
-	testTokenAccount := solana.MustPublicKeyFromBase58("7rEjmuTevAyiY7iUDWT6ucBNHXT2XqjcfQqKvshYrVsh")
-
+func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Context) (out bool, responseTime time.Duration, code int, err error) {
 	start := time.Now()
-	out = false
-	code = http.StatusOK
-	var err error
+
 	switch method {
 	case getAccountInfo:
-		if _, err = rpcClient.GetAccountInfo(ctx, testKey); err == nil {
+		if _, err = rpcClient.GetAccountInfo(ctx, solana.SystemProgramID); err == nil {
 			out = true
 		}
 	case getBalance:
-		if _, err = rpcClient.GetBalance(ctx, testKey, rpc.CommitmentProcessed); err == nil {
+		if _, err = rpcClient.GetBalance(ctx, solana.SystemProgramID, rpc.CommitmentProcessed); err == nil {
 			out = true
 		}
 	case getBlockHeight:
@@ -86,7 +84,7 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 			out = true
 		}
 	case getInflationReward:
-		if _, err = rpcClient.GetInflationReward(ctx, []solana.PublicKey{testKey}, nil); err == nil {
+		if _, err = rpcClient.GetInflationReward(ctx, []solana.PublicKey{solana.SystemProgramID}, nil); err == nil {
 			out = true
 		}
 	case getLatestBlockhash:
@@ -98,7 +96,7 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 			out = true
 		}
 	case getMultipleAccounts:
-		if _, err = rpcClient.GetMultipleAccounts(ctx, testKey); err == nil {
+		if _, err = rpcClient.GetMultipleAccounts(ctx, solana.SystemProgramID); err == nil {
 			out = true
 		}
 	//case getProgramAccounts:
@@ -205,5 +203,5 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 		}
 	}
 
-	return out, responseTime, code, nil
+	return out, responseTime, http.StatusOK, nil
 }
