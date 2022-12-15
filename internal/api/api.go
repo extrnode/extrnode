@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/patrickmn/go-cache"
 
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
@@ -18,6 +20,7 @@ type api struct {
 	port    uint64
 	router  *echo.Echo
 	storage storage.PgStorage
+	cache   *cache.Cache
 
 	waitGroup              *sync.WaitGroup
 	ctx                    context.Context
@@ -30,6 +33,8 @@ const (
 	jsonOutputFormat    = "json"
 	csvOutputFormat     = "csv"
 	haproxyOutputFormat = "haproxy"
+
+	cacheTTL = 5 * time.Minute
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
@@ -47,10 +52,11 @@ func NewAPI(cfg config.Config) (*api, error) {
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
 
-	api := &api{
+	a := &api{
 		port:    uint64(cfg.API.Port),
 		router:  echo.New(),
 		storage: s,
+		cache:   cache.New(cacheTTL, cacheTTL),
 
 		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
@@ -63,9 +69,9 @@ func NewAPI(cfg config.Config) (*api, error) {
 		blockchainIDs: blockchainsMap,
 	}
 
-	api.initApiHandlers()
+	a.initApiHandlers()
 
-	return api, nil
+	return a, nil
 }
 
 func (a *api) initApiHandlers() {
@@ -77,7 +83,8 @@ func (a *api) initApiHandlers() {
 
 	apiGroup := a.router.Group("/api/v1")
 	apiGroup.GET("/info", a.getInfo)
-	apiGroup.GET("/endpoints", a.getEndpoints)
+	apiGroup.GET("/endpoints", a.getEndpointsHandler)
+	apiGroup.GET("/stats", a.getStatsHandler)
 }
 
 func (a *api) Run() error {

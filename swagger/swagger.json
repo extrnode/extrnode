@@ -40,14 +40,6 @@
             }
           },
           {
-            "name": "is_alive",
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "is_alive is true means that endpoint supports at least one rpc method"
-          },
-          {
             "name": "is_rpc",
             "in": "query",
             "schema": {
@@ -106,7 +98,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Endpoints info responce array",
+            "description": "Endpoints info response array",
             "content": {
               "application/json": {
                 "schema": {
@@ -119,7 +111,7 @@
               "text/csv": {
                 "schema": {
                   "type": "string",
-                  "example": "endpoint,version,ntw_as,network,country,is_alive,is_rpc,is_validator\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,true,false\n"
+                  "example": "endpoint,version,ntw_as,network,country,is_rpc,is_validator\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false\n"
                 }
               },
               "text/plain": {
@@ -133,6 +125,28 @@
           "400": {
             "description": "Bad request",
             "content": {}
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Return stats",
+        "operationId": "stats",
+        "responses": {
+          "200": {
+            "description": "Stats object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal server error",
@@ -171,9 +185,6 @@
                 }
               }
             }
-          },
-          "is_alive": {
-            "type": "boolean"
           },
           "is_rpc": {
             "type": "boolean"
@@ -214,6 +225,27 @@
                 }
               }
             }
+          }
+        }
+      },
+      "Stats": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 100
+          },
+          "alive": {
+            "type": "integer",
+            "example": 20
+          },
+          "rpc": {
+            "type": "integer",
+            "example": 2
+          },
+          "validator": {
+            "type": "integer",
+            "example": 15
           }
         }
       }

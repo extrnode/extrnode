@@ -25,14 +25,23 @@ func (a *api) getInfo(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, nil)
 }
 
-func (a *api) getEndpoints(ctx echo.Context) error {
+func (a *api) getStatsHandler(ctx echo.Context) error {
+	res, err := a.getStats()
+	if err != nil {
+		log.Logger.Api.Errorf("getStats: %s", err)
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, res)
+}
+
+func (a *api) getEndpointsHandler(ctx echo.Context) error {
 	var (
 		err error
 		ok  bool
 
 		limit            = defaultLimit
 		format           = jsonOutputFormat
-		isAlive          *bool
 		isRpc            *bool
 		isValidator      *bool
 		asnCountries     []string
@@ -43,7 +52,7 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 	// TODO: in future will be as a query param
 	blockchainID, ok := a.blockchainIDs[solanaBlockchain]
 	if !ok {
-		err = fmt.Errorf("getEndpoints: fail to get blockchainID")
+		err = fmt.Errorf("getEndpointsHandler: fail to get blockchainID")
 		log.Logger.Api.Errorf(err.Error())
 		return err
 	}
@@ -59,14 +68,6 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		}
 
 		format = paramString
-	}
-	if paramString := ctx.QueryParam("is_alive"); paramString != "" {
-		paramLocal, err := strconv.ParseBool(paramString)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "is_alive")
-		}
-
-		isAlive = &paramLocal
 	}
 	if paramString := ctx.QueryParam("is_rpc"); paramString != "" {
 		paramLocal, err := strconv.ParseBool(paramString)
@@ -103,9 +104,9 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		}
 	}
 
-	res, err := a.storage.GetEndpoints(blockchainID, limit, isAlive, isRpc, isValidator, asnCountries, versions, supportedMethods)
+	res, err := a.storage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
-		log.Logger.Api.Errorf("GetEndpoints: %s", err)
+		log.Logger.Api.Errorf("getEndpointsHandler: GetEndpoints: %s", err)
 		return err
 	}
 
@@ -119,7 +120,6 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 				Network:     r.AsnInfo.Network,
 				Country:     r.AsnInfo.Country.Name,
 				Isp:         r.AsnInfo.Isp,
-				IsAlive:     r.IsAlive,
 				IsRpc:       r.IsRpc,
 				IsValidator: r.IsValidator,
 			}

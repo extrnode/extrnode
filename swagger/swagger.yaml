@@ -24,11 +24,6 @@ paths:
           schema:
             type: string
             enum: [ json, csv, haproxy ]
-        - name: is_alive
-          in: query
-          schema:
-            type: boolean
-          description: is_alive is true means that endpoint supports at least one rpc method
         - name: is_rpc
           in: query
           schema:
@@ -69,7 +64,7 @@ paths:
           style: form
       responses:
         200:
-          description: Endpoints info responce array
+          description: Endpoints info response array
           content:
             application/json:
               schema:
@@ -80,8 +75,8 @@ paths:
               schema:
                 type: string
                 example: |
-                  endpoint,version,ntw_as,network,country,is_alive,is_rpc,is_validator
-                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,true,false
+                  endpoint,version,ntw_as,network,country,is_rpc,is_validator
+                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false
             text/plain:
               schema:
                 type: string
@@ -92,6 +87,20 @@ paths:
         500:
           description: Internal server error
           content: {}
+  /stats:
+    get:
+      summary: Return stats
+      operationId: stats
+      responses:
+        200:
+          description: Stats object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        500:
+          description: Internal server error
+          content: { }
 
 components:
   schemas:
@@ -116,8 +125,6 @@ components:
                 type: integer
                 example: 1000
                 description: in milliseconds
-        is_alive:
-          type: boolean
         is_rpc:
           type: boolean
         is_validator:
@@ -146,3 +153,18 @@ components:
                 name:
                   type: string
                   example: United States
+    Stats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        alive:
+          type: integer
+          example: 20
+        rpc:
+          type: integer
+          example: 2
+        validator:
+          type: integer
+          example: 15

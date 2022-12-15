@@ -9,7 +9,7 @@ import (
 	"extrnode-be/internal/pkg/storage"
 )
 
-const scannerInterval = time.Hour * 4
+const scannerInterval = time.Hour
 
 type chainType string
 
