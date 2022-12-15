@@ -28,6 +28,10 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: is_validator
+          in: query
+          schema:
+            type: boolean
         - name: asn_country
           in: query
           schema:
@@ -69,8 +73,8 @@ paths:
               schema:
                 type: string
                 example: |
-                  endpoint,version,ntw_as,network,country,is_rpc
-                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true
+                  endpoint,version,ntw_as,network,country,is_rpc,is_validator
+                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,true
             text/plain:
               schema:
                 type: string
@@ -106,6 +110,8 @@ components:
                 example: 1000
                 description: in milliseconds
         is_rpc:
+          type: boolean
+        is_validator:
           type: boolean
         asn_info:
           type: object

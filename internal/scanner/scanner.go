@@ -21,6 +21,7 @@ type scanner struct {
 	waitGroup *sync.WaitGroup
 	ctx       context.Context
 	ctxCancel context.CancelFunc
+	adapters  map[chainType]adapters.Adapter
 }
 
 func NewScanner(cfg config.Config) (*scanner, error) {
@@ -32,6 +33,12 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 		return nil, fmt.Errorf("storage init: %s", err)
 	}
 
+	solanaAdapter, err := solana.NewSolanaAdapter(ctx, s)
+	if err != nil {
+		cancelFunc()
+		return nil, fmt.Errorf("NewSolanaAdapter: %s", err)
+	}
+
 	return &scanner{
 		cfg:       cfg,
 		storage:   s,
@@ -39,6 +46,7 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
 		ctxCancel: cancelFunc,
+		adapters:  map[chainType]adapters.Adapter{chainTypeSolana: solanaAdapter},
 	}, nil
 }
 
@@ -62,12 +70,15 @@ func (s *scanner) runScanner(ctx context.Context) {
 			return
 
 		case task := <-s.taskQueue:
-			var adapter adapters.Adapter
+			var (
+				adapter adapters.Adapter
+				ok      bool
+			)
 			switch task.chain {
 			case chainTypeSolana:
-				adapter, err = solana.NewSolanaAdapter(s.ctx, s.storage)
-				if err != nil {
-					log.Logger.Scanner.Errorf("NewSolanaAdapter (%s %s): %s", task.chain, task.host, err)
+				adapter, ok = s.adapters[task.chain]
+				if !ok {
+					log.Logger.Scanner.Errorf("fail to get adapter for %s", task.chain)
 					continue
 				}
 			default:
@@ -75,15 +86,15 @@ func (s *scanner) runScanner(ctx context.Context) {
 				continue
 			}
 
-			err = adapter.GetNewNodes(task.host, task.isAlive)
+			err = adapter.GetNewNodes(task.peer)
 			if err != nil {
-				log.Logger.Scanner.Errorf("GetNewNodes (%s %s): %s", task.chain, task.host, err)
+				log.Logger.Scanner.Errorf("GetNewNodes (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 				// continue not needed
 			}
 
-			err = adapter.Scan(task.host)
+			err = adapter.Scan(task.peer)
 			if err != nil {
-				log.Logger.Scanner.Errorf("Scan (%s %s): %s", task.chain, task.host, err)
+				log.Logger.Scanner.Errorf("Scan (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
 		}
 	}

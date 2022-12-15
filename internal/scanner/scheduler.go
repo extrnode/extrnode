@@ -6,36 +6,42 @@ import (
 	"time"
 
 	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/storage"
 )
 
 const scannerInterval = time.Hour * 4
 
 type chainType string
 
-const chainTypeSolana = "solana"
+const chainTypeSolana chainType = "solana"
 
 type scannerTask struct {
-	host    string
-	isAlive bool
-	chain   chainType
+	peer  storage.PeerWithIpAndBlockchain
+	chain chainType
+}
+
+func (s *scanner) updateAdapters() error {
+	for chain, a := range s.adapters {
+		err := a.BeforeRun()
+		if err != nil {
+			return fmt.Errorf("BeforeRun %s: %s", chain, err)
+		}
+	}
+
+	return nil
 }
 
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		res, err := s.storage.GetPeers()
+		peers, err := s.storage.GetPeers()
 		if err != nil {
-			log.Logger.Scanner.Fatalf("GetPeers: %s", err)
+			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}
 
-		log.Logger.Scanner.Debugf("scheduleScans: get %d peers. Creating scanner tasks", len(res))
+		log.Logger.Scanner.Debugf("scheduleScans: get %d peers. Creating scanner tasks", len(peers))
 
-		for _, r := range res {
-			schema := "http://"
-			if r.IsSSL {
-				schema = "https://"
-			}
-
-			s.taskQueue <- scannerTask{host: fmt.Sprintf("%s%s:%d", schema, r.Address.String(), r.Port), isAlive: r.IsAlive, chain: chainType(r.BlockchainName)}
+		for _, p := range peers {
+			s.taskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}
 		}
 
 		select {
@@ -44,6 +50,11 @@ func (s *scanner) scheduleScans(ctx context.Context) {
 			return
 
 		case <-time.After(scannerInterval):
+			err = s.updateAdapters()
+			if err != nil {
+				log.Logger.Scanner.Fatalf("scheduleScans: updateAdapters: %s", err)
+			}
+
 			continue
 		}
 	}

@@ -2,11 +2,14 @@ package models
 
 import (
 	"net"
+
+	"github.com/gagliardetto/solana-go"
 )
 
 type (
 	NodeInfo struct {
 		Version string
+		Pubkey  solana.PublicKey
 		IP      net.IP
 		Port    int
 		AsnInfo

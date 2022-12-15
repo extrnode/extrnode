@@ -2,9 +2,6 @@ package solana
 
 import (
 	"fmt"
-	"net"
-	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/gagliardetto/solana-go"
@@ -15,36 +12,7 @@ import (
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) HostAsPeer(host string) (hostPeer storage.PeerWithIp, err error) {
-	hostURL, err := url.Parse(host)
-	if err != nil {
-		return hostPeer, err
-	}
-
-	host, port, err := net.SplitHostPort(hostURL.Host)
-	if err != nil {
-		return hostPeer, err
-	}
-
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return hostPeer, err
-	}
-
-	portInt, err := strconv.Atoi(port)
-	if err != nil {
-		return hostPeer, err
-	}
-
-	hostPeers, err := a.storage.GetPeerByPortAndIP(portInt, ip)
-	if err != nil {
-		return hostPeer, err
-	}
-
-	return hostPeers, nil
-}
-
-func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
+func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error {
 	log.Logger.Scanner.Debugf("start ScanMethods")
 	defer log.Logger.Scanner.Debugf("fin ScanMethods")
 
@@ -54,17 +22,18 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 		return fmt.Errorf("GetRpcMethodsMapByBlockchainID: %s", err)
 	}
 
-	rpcClient, isSSL, err := a.validRpc(host)
+	_, isValidator := a.voteAccountsNodePubkey[peer.NodePubkey] // peer.NodePubkey can be empty on first iteration
+	rpcClient, isSSL, err := a.getValidRpc(peer)
 	if err != nil {
 		log.Logger.Scanner.Errorf("ScanMethods finished with error: %s", err)
-		err = a.storage.CreateScannerPeer(host.ID, now, 0, false)
+		err = a.storage.CreateScannerPeer(peer.ID, now, 0, false)
 		if err != nil {
-			return fmt.Errorf("CreateScannerPeer: %s", err)
+			return fmt.Errorf("CreateScannerPeer 1: %s", err)
 		}
 
-		err = a.storage.UpdatePeerByID(host.ID, false, false, isSSL, host.IsMainNet)
+		err = a.storage.UpdatePeerByID(peer.ID, false, false, isSSL, peer.IsMainNet, isValidator)
 		if err != nil {
-			return fmt.Errorf("UpdatePeerByID: %s", err)
+			return fmt.Errorf("UpdatePeerByID 1: %s", err)
 		}
 
 		return nil
@@ -81,26 +50,26 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 
 		if responseValid {
 			isAlive = true
-			err = a.storage.UpsertRpcPeerMethod(host.ID, methods[m], responseTime)
+			err = a.storage.UpsertRpcPeerMethod(peer.ID, methods[m], responseTime)
 			if err != nil {
 				return fmt.Errorf("CreateRpcPeerMethod: %s", err)
 			}
 		} else {
 			isRpc = false
-			err = a.storage.DeleteRpcPeerMethod(host.ID, methods[m])
+			err = a.storage.DeleteRpcPeerMethod(peer.ID, methods[m])
 			if err != nil {
 				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
 			}
 		}
-		err = a.storage.CreateScannerMethod(host.ID, methods[m], now, 0, responseTime, statusCode, responseValid)
+		err = a.storage.CreateScannerMethod(peer.ID, methods[m], now, 0, responseTime, statusCode, responseValid)
 		if err != nil {
 			return fmt.Errorf("CreateScannerMethod: %s", err)
 		}
 	}
 
-	err = a.storage.CreateScannerPeer(host.ID, now, 0, isAlive)
+	err = a.storage.CreateScannerPeer(peer.ID, now, 0, isAlive)
 	if err != nil {
-		return fmt.Errorf("CreateScannerPeer: %s", err)
+		return fmt.Errorf("CreateScannerPeer 2: %s", err)
 	}
 
 	hash, err := rpcClient.GetGenesisHash(a.ctx)
@@ -108,9 +77,9 @@ func (a *SolanaAdapter) ScanMethods(host storage.PeerWithIp) error {
 		return fmt.Errorf("GetGenesisHash: %s", err)
 	}
 
-	err = a.storage.UpdatePeerByID(host.ID, isRpc, isAlive, isSSL, hash == solanaMainNetGenesisHash)
+	err = a.storage.UpdatePeerByID(peer.ID, isRpc, isAlive, isSSL, hash == solanaMainNetGenesisHash, isValidator)
 	if err != nil {
-		return fmt.Errorf("UpdatePeerByID: %s", err)
+		return fmt.Errorf("UpdatePeerByID 2: %s", err)
 	}
 
 	return nil

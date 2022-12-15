@@ -9,17 +9,20 @@ type (
 			ResponseTime int64  `json:"response_time"  pg:"response_time"`
 		} `json:"supported_methods" pg:"supported_methods"`
 		//UnscannedMethods []string `json:"unscanned_methods" pg:"unscanned_methods"`
-		IsRpc   bool    `json:"is_rpc" pg:"is_rpc"`
-		AsnInfo AsnInfo `json:"asn_info" pg:"asn_info"`
+		IsRpc       bool    `json:"is_rpc" pg:"is_rpc"`
+		IsValidator bool    `json:"is_validator" pg:"is_validator"`
+		AsnInfo     AsnInfo `json:"asn_info" pg:"asn_info"`
+
 	}
 	EndpointCsv struct {
-		Endpoint string `csv:"endpoint"`
-		Version  string `csv:"version"`
-		As       int    `csv:"as"`
-		Network  string `csv:"network"`
-		Country  string `csv:"country"`
-		Isp      string `csv:"isp"`
-		IsRpc    bool   `csv:"is_rpc"`
+		Endpoint    string `csv:"endpoint"`
+		Version     string `csv:"version"`
+		As          int    `csv:"as"`
+		Network     string `csv:"network"`
+		Country     string `csv:"country"`
+		Isp         string `csv:"isp"`
+		IsRpc       bool   `csv:"is_rpc"`
+		IsValidator bool   `csv:"is_validator"`
 	}
 	AsnInfo struct {
 		Network string  `json:"network" pg:"network"`

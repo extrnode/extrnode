@@ -33,6 +33,7 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		limit            = defaultLimit
 		format           = jsonOutputFormat
 		isRpc            *bool
+		isValidator      *bool
 		asnCountries     []string
 		versions         []string
 		supportedMethods []string
@@ -52,12 +53,20 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		format = paramString
 	}
 	if paramString := ctx.QueryParam("is_rpc"); paramString != "" {
-		isRpcLocal, err := strconv.ParseBool(paramString)
+		paramLocal, err := strconv.ParseBool(paramString)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "is_rpc")
 		}
 
-		isRpc = &isRpcLocal
+		isRpc = &paramLocal
+	}
+	if paramString := ctx.QueryParam("is_validator"); paramString != "" {
+		paramLocal, err := strconv.ParseBool(paramString)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "is_validator")
+		}
+
+		isValidator = &paramLocal
 	}
 	if paramString := ctx.QueryParam("asn_country"); paramString != "" {
 		asnCountries = strings.Split(paramString, ",")
@@ -78,7 +87,7 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		}
 	}
 
-	res, err := a.storage.GetEndpoints(solanaBlockchain, limit, isRpc, asnCountries, versions, supportedMethods)
+	res, err := a.storage.GetEndpoints(solanaBlockchain, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
 		log.Logger.Api.Errorf("GetEndpoints: %s", err)
 		return err
@@ -88,13 +97,14 @@ func (a *api) getEndpoints(ctx echo.Context) error {
 		resCsv := make([]models.EndpointCsv, len(res))
 		for i, r := range res {
 			resCsv[i] = models.EndpointCsv{
-				Endpoint: r.Endpoint,
-				Version:  r.Version,
-				As:       r.AsnInfo.As,
-				Network:  r.AsnInfo.Network,
-				Country:  r.AsnInfo.Country.Name,
-				Isp:      r.AsnInfo.Isp,
-				IsRpc:    r.IsRpc,
+				Endpoint:    r.Endpoint,
+				Version:     r.Version,
+				As:          r.AsnInfo.As,
+				Network:     r.AsnInfo.Network,
+				Country:     r.AsnInfo.Country.Name,
+				Isp:         r.AsnInfo.Isp,
+				IsRpc:       r.IsRpc,
+				IsValidator: r.IsValidator,
 			}
 		}
 		return csvResp(ctx, resCsv, "")

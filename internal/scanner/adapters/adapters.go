@@ -1,6 +1,9 @@
 package adapters
 
+import "extrnode-be/internal/pkg/storage"
+
 type Adapter interface {
-	Scan(host string) error
-	GetNewNodes(host string, isAlive bool) error
+	Scan(peer storage.PeerWithIpAndBlockchain) error
+	GetNewNodes(peer storage.PeerWithIpAndBlockchain) error
+	BeforeRun() error
 }

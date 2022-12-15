@@ -22,6 +22,8 @@ type (
 		IsAlive      bool   `pg:"prs_is_alive"`
 		IsSSL        bool   `pg:"prs_is_ssl"`
 		IsMainNet    bool   `pg:"prs_is_main_net"`
+		NodePubkey   string `pg:"prs_node_pubkey"`
+		IsValidator  bool   `pg:"prs_is_validator"`
 	}
 
 	PeerWithIp struct {
@@ -37,7 +39,7 @@ type (
 
 const peersTable = "peers"
 
-func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string, isRpc, isAlive, isSSL bool, isMainNet bool) (id int, err error) {
+func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string, isRpc, isAlive, isSSL, isMainNet, isValidator bool, nodePubkey string) (id int, err error) {
 	if blockchainID == 0 {
 		return id, fmt.Errorf("empty blockchainID")
 	}
@@ -52,7 +54,7 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 		From(peersTable).
 		Where("blc_id = ? AND ip_id = ? AND prs_port = ?", blockchainID, ipID, port).ToSql()
 	if err != nil {
-		return id, fmt.Errorf("select: %s", err)
+		return id, err
 	}
 
 	m := Peer{}
@@ -62,10 +64,10 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	}
 
 	if err == pg.ErrNoRows {
-		query = `INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING prs_id`
+		query = `INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_is_validator, prs_node_pubkey)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING prs_id`
 
-		_, err = p.db.QueryOne(&m, query, blockchainID, ipID, port, version, isRpc, isAlive, isSSL, isMainNet)
+		_, err = p.db.QueryOne(&m, query, blockchainID, ipID, port, version, isRpc, isAlive, isSSL, isMainNet, isValidator, nodePubkey)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
 		}
@@ -74,32 +76,14 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetPeerByPortAndIP(port int, ip net.IP) (res PeerWithIp, err error) {
-	query, args, err := sq.Select("ip_id, ip_addr, prs_id, blc_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net").
-		From(ipsTable).
-		Where("prs_port = ? AND ip_addr = ?", port, ip).
-		Join(fmt.Sprintf("%s USING(ip_id)", peersTable)).
-		ToSql()
-	if err != nil {
-		return res, err
-	}
-
-	_, err = p.db.Query(&res, query, args...)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
-}
-
-func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet bool) (err error) {
+func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet, isValidator bool) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
 
-	query := `UPDATE peers SET prs_is_rpc = ?, prs_is_alive = ?, prs_is_ssl = ?, prs_is_main_net = ?  
+	query := `UPDATE peers SET prs_is_rpc = ?, prs_is_alive = ?, prs_is_ssl = ?, prs_is_main_net = ?, prs_is_validator = ?
 			WHERE prs_id = ?`
-	_, err = p.db.Exec(query, isRpc, isAlive, isSSL, isMainNet, peerID)
+	_, err = p.db.Exec(query, isRpc, isAlive, isSSL, isMainNet, isValidator, peerID)
 	if err != nil {
 		return err
 	}
@@ -107,7 +91,22 @@ func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet 
 	return nil
 }
 
-func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
+func (p *PgStorage) UpdatePeerVersionAndNodePubkey(peerID int, version, nodePubkey string) (err error) {
+	if peerID == 0 {
+		return fmt.Errorf("empty peerID")
+	}
+
+	query := `UPDATE peers SET prs_version = ?, prs_node_pubkey = ?
+			WHERE prs_id = ?`
+	_, err = p.db.Exec(query, version, nodePubkey, peerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
 	for i := range asnCountries {
 		asnCountries[i] = strings.ToUpper(asnCountries[i])
 	}
@@ -115,6 +114,7 @@ func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnC
 	q := sq.Select(`CONCAT(ip_addr, ':', prs_port)  AS endpoint,
 		   prs_version 										  AS version,
 		   prs_is_rpc 										  AS is_rpc,
+		   prs_is_validator 								  AS is_validator,
 		   json_agg(json_build_object('name', rpc.methods.mtd_name, 'response_time', rpc.peers_methods.pmd_response_time_ms)) AS supported_methods,
 		   json_build_object('network', ntw_mask, 'isp', ntw_name, 'ntw_as', ntw_as, 'country',
 									  json_build_object('alpha2', cnt_alpha2, 'alpha3', cnt_alpha3, 'name', cnt_name)) AS asn_info`).
@@ -128,6 +128,9 @@ func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnC
 		GroupBy("peers.prs_id, ip_addr, ntw_mask, ntw_name, ntw_as, cnt_alpha2, cnt_alpha3, cnt_name")
 	if isRpc != nil {
 		q = q.Where("prs_is_rpc = ?", *isRpc)
+	}
+	if isValidator != nil {
+		q = q.Where("prs_is_validator = ?", *isValidator)
 	}
 	if len(asnCountries) != 0 {
 		q = q.Where(sq.Eq{"cnt_alpha2": asnCountries})
@@ -156,10 +159,10 @@ func (p *PgStorage) GetEndpoints(blockchain string, limit int, isRpc *bool, asnC
 }
 
 func (p *PgStorage) GetPeers() (res []PeerWithIpAndBlockchain, err error) {
-	query, args, err := sq.Select("prs_id, blc_id, blc_name, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, ip_addr").
+	query, args, err := sq.Select("prs_id, blc_id, blc_name, ip_id, ip_addr, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator").
 		From(peersTable).
-		Join(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
-		Join(fmt.Sprintf("%s USING(blc_id)", blockchainsTable)).
+		LeftJoin(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
+		LeftJoin(fmt.Sprintf("%s USING(blc_id)", blockchainsTable)).
 		ToSql()
 	if err != nil {
 		return res, err
@@ -173,17 +176,17 @@ func (p *PgStorage) GetPeers() (res []PeerWithIpAndBlockchain, err error) {
 	return res, nil
 }
 
-func (p *PgStorage) ReturnExistentPeers(blockchainID int, ips []string) (res []PeerWithIp, err error) {
+func (p *PgStorage) GetExistentPeers(blockchainID int, ips []net.IP) (res map[string]map[int]PeerWithIp, err error) {
 	if len(ips) == 0 {
-		return res, err
+		return res, nil
 	}
 	if blockchainID == 0 {
-		return nil, fmt.Errorf("empty blockchainID")
+		return res, fmt.Errorf("empty blockchainID")
 	}
 
-	query, args, err := sq.Select("ip_addr, prs_port").
+	query, args, err := sq.Select("prs_id, prs_port, prs_version, prs_node_pubkey, ip_addr").
 		From(peersTable).
-		Join(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
+		LeftJoin(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
 		Where("blc_id = ?", blockchainID).
 		Where(sq.Eq{"ip_addr": ips}).
 		ToSql()
@@ -191,9 +194,19 @@ func (p *PgStorage) ReturnExistentPeers(blockchainID int, ips []string) (res []P
 		return res, err
 	}
 
-	_, err = p.db.Query(&res, query, args...)
+	var peers []PeerWithIp
+	_, err = p.db.Query(&peers, query, args...)
 	if err != nil {
 		return res, err
+	}
+
+	res = make(map[string]map[int]PeerWithIp, len(peers)) // ip/port
+	for _, peer := range peers {
+		if _, ok := res[peer.Address.String()]; !ok {
+			res[peer.Address.String()] = make(map[int]PeerWithIp)
+		}
+
+		res[peer.Address.String()][peer.Port] = peer
 	}
 
 	return res, nil

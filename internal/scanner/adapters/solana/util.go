@@ -46,23 +46,23 @@ func createRpcWithTimeout(host string) *rpc.Client {
 	return rpc.NewWithCustomRPCClient(jsonrpcClient)
 }
 
-func (a *SolanaAdapter) getCustomRpcClient(peer storage.PeerWithIp, isSSL bool) *rpc.Client {
+func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (*rpc.Client, bool, error) {
+	rpcClient := createRpcWithTimeout(createNodeUrl(peer, false))
+	_, err := rpcClient.GetVersion(a.ctx)
+	if err != nil {
+		rpcClient = createRpcWithTimeout(createNodeUrl(peer, true))
+		_, err := rpcClient.GetVersion(a.ctx)
+		return rpcClient, true, err
+	}
+
+	return rpcClient, false, nil
+}
+
+func createNodeUrl(p storage.PeerWithIpAndBlockchain, isSSL bool) string {
 	schema := "http://"
 	if isSSL {
 		schema = "https://"
 	}
-	addr := fmt.Sprintf("%s%s:%d", schema, peer.Address.String(), peer.Port)
-	rpcClient := createRpcWithTimeout(addr)
-	return rpcClient
-}
 
-func (a *SolanaAdapter) validRpc(peer storage.PeerWithIp) (*rpc.Client, bool, error) {
-	rpcClient := a.getCustomRpcClient(peer, false)
-	_, err := rpcClient.GetVersion(a.ctx)
-	if err != nil {
-		rpcClient = a.getCustomRpcClient(peer, true)
-		_, err := rpcClient.GetVersion(a.ctx)
-		return rpcClient, true, err
-	}
-	return rpcClient, false, nil
+	return fmt.Sprintf("%s%s:%d", schema, p.Address.String(), p.Port)
 }
