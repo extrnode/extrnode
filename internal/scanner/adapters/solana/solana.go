@@ -57,7 +57,7 @@ func (a *SolanaAdapter) Scan(peer storage.PeerWithIpAndBlockchain) error {
 }
 
 func (a *SolanaAdapter) GetNewNodes(peer storage.PeerWithIpAndBlockchain) error {
-	if !peer.IsAlive {
+	if !peer.IsAlive || !peer.IsMainNet {
 		return nil
 	}
 
