@@ -220,7 +220,7 @@ func (p *PgStorage) GetStats() (res models.Stat, err error) {
 		   SUM(CASE WHEN prs_is_alive IS true THEN 1 ELSE 0 END)     							AS alive,
 		   SUM(CASE WHEN prs_is_rpc IS true THEN 1 ELSE 0 END)       							AS rpc,
 		   SUM(CASE WHEN prs_is_alive IS true AND prs_is_validator IS true THEN 1 ELSE 0 END) 	AS validator
-		FROM peers`
+		FROM peers WHERE prs_is_main_net IS TRUE`
 
 	_, err = p.db.QueryOne(&res, q)
 	if err != nil {

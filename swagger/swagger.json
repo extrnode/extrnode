@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.extrnode.com/api/v1"
+      "url": "http://135.181.201.195:8000/api/v1"
     }
   ],
   "paths": {
