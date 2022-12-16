@@ -4,6 +4,7 @@ info:
   termsOfService: http://swagger.io/terms/
   version: 1.0.0
 servers:
+  - url: https://extrnode.tk/api/v1
   - url: http://135.181.201.195:8000/api/v1
 paths:
   /endpoints:

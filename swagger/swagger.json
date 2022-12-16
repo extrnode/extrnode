@@ -7,6 +7,9 @@
   },
   "servers": [
     {
+      "url": "https://extrnode.tk/api/v1"
+    },
+    {
       "url": "http://135.181.201.195:8000/api/v1"
     }
   ],
