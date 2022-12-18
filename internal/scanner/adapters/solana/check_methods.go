@@ -23,21 +23,21 @@ const (
 	getTransaction                       = "getTransaction"
 	getInflationReward                   = "getInflationReward"
 	//getProgramAccounts                            = "getProgramAccounts"           rpc.MainNetBeta_RPC don`t implement this method
-	getSignatureStatuses             = "getSignatureStatuses"
-	getTokenAccountBalance           = "getTokenAccountBalance"
-	getMultipleAccounts              = "getMultipleAccounts"
-	getEpochInfo                     = "getEpochInfo"
-	getBalance                       = "getBalance"
-	getRecentPerformanceSamples      = "getRecentPerformanceSamples"
-	getVoteAccounts                  = "getVoteAccounts"
-	getInflationRate                 = "getInflationRate"
-	getSupply                        = "getSupply"
-	getBlockTime                     = "getBlockTime"
-	getBlockHeight                   = "getBlockHeight"
-	getMinimumBalanceForRentExemptio = "getMinimumBalanceForRentExemptio"
-	isBlockhashValid                 = "isBlockhashValid"
-	getTransactionCount              = "getTransactionCount"
-	getTokenAccountsByOwner          = "getTokenAccountsByOwner"
+	getSignatureStatuses              = "getSignatureStatuses"
+	getTokenAccountBalance            = "getTokenAccountBalance"
+	getMultipleAccounts               = "getMultipleAccounts"
+	getEpochInfo                      = "getEpochInfo"
+	getBalance                        = "getBalance"
+	getRecentPerformanceSamples       = "getRecentPerformanceSamples"
+	getVoteAccounts                   = "getVoteAccounts"
+	getInflationRate                  = "getInflationRate"
+	getSupply                         = "getSupply"
+	getBlockTime                      = "getBlockTime"
+	getBlockHeight                    = "getBlockHeight"
+	getMinimumBalanceForRentExemption = "getMinimumBalanceForRentExemption"
+	isBlockhashValid                  = "isBlockhashValid"
+	getTransactionCount               = "getTransactionCount"
+	getTokenAccountsByOwner           = "getTokenAccountsByOwner"
 )
 
 const (
@@ -91,7 +91,7 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 		if _, err = rpcClient.GetLatestBlockhash(ctx, rpc.CommitmentProcessed); err == nil {
 			out = true
 		}
-	case getMinimumBalanceForRentExemptio:
+	case getMinimumBalanceForRentExemption:
 		if _, err = rpcClient.GetMinimumBalanceForRentExemption(ctx, 100, rpc.CommitmentProcessed); err == nil {
 			out = true
 		}

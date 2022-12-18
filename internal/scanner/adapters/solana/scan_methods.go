@@ -52,7 +52,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 	// skip method checking for devnet
 	if hash != solanaMainNetGenesisHash {
-		log.Logger.Scanner.Debugf("ScanMethods skip dennet peer prdId %d: %s", peer.ID, reformatSolanaRpcError(err))
+		log.Logger.Scanner.Debugf("ScanMethods skip dennet peer prdId %d", peer.ID)
 
 		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator)
 		if err != nil {

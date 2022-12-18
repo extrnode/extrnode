@@ -17,7 +17,7 @@ create table if not exists rpc.methods
 		constraint methods_blockchains_blc_id_fk
 			references blockchains
 				on update cascade on delete restrict,
-	mtd_name varchar(32) not null,
+	mtd_name varchar(64) not null,
 	mtd_created_at timestamp default now() not null
 );
 create unique index if not exists methods_blc_id_mtd_name_uniq_index
@@ -197,7 +197,7 @@ INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchai
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getSupply');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlockTime');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlockHeight');
-INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getMinimumBalanceForRentExemptio');
+INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getMinimumBalanceForRentExemption');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'isBlockhashValid');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTransactionCount');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountsByOwner');
