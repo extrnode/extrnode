@@ -12,7 +12,7 @@ import (
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator bool) error {
+func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool) error {
 	err := a.storage.CreateScannerPeer(peer.ID, now, 0, isALive)
 	if err != nil {
 		return fmt.Errorf("CreateScannerPeer: %s", err)
@@ -21,6 +21,13 @@ func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now
 	err = a.storage.UpdatePeerByID(peer.ID, isRpc, isALive, isSSL, isMainNet, isValidator)
 	if err != nil {
 		return fmt.Errorf("UpdatePeerByID: %s", err)
+	}
+
+	if deleteAllRpcMethods {
+		err = a.storage.DeleteRpcPeerMethod(peer.ID, nil)
+		if err != nil {
+			return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
+		}
 	}
 
 	return nil
@@ -38,7 +45,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	if err != nil {
 		log.Logger.Scanner.Errorf("ScanMethods finished with error prdId %d: %s", peer.ID, reformatSolanaRpcError(err))
 
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator)
+		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator, true)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 1: %s", err)
 		}
@@ -54,7 +61,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	if hash != solanaMainNetGenesisHash {
 		log.Logger.Scanner.Debugf("ScanMethods skip dennet peer prdId %d", peer.ID)
 
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator)
+		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator, true)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 2: %s", err)
 		}
@@ -79,7 +86,8 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 			}
 		} else {
 			isRpc = false
-			err = a.storage.DeleteRpcPeerMethod(peer.ID, methods[m])
+			methodID := methods[m]
+			err = a.storage.DeleteRpcPeerMethod(peer.ID, &methodID)
 			if err != nil {
 				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
 			}
@@ -91,7 +99,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 
 	// isMainNet == true because devnet is skipped
-	err = a.updatePeerInfo(peer, now, isAlive, isRpc, isSSL, true, isValidator)
+	err = a.updatePeerInfo(peer, now, isAlive, isRpc, isSSL, true, isValidator, false)
 	if err != nil {
 		return fmt.Errorf("updatePeerInfo 3: %s", err)
 	}

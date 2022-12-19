@@ -33,16 +33,21 @@ func (p *PgStorage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime ti
 	return nil
 }
 
-func (p *PgStorage) DeleteRpcPeerMethod(peerID, rpcMethodID int) error {
+func (p *PgStorage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
-	if rpcMethodID == 0 {
+	if rpcMethodID != nil && *rpcMethodID == 0 {
 		return fmt.Errorf("empty rpcMethodID")
 	}
 
-	query, args, err := sq.Delete(rpcPeersMethodsTable).
-		Where("prs_id = ? AND mtd_id = ?", peerID, rpcMethodID).ToSql()
+	request := sq.Delete(rpcPeersMethodsTable).
+		Where("prs_id = ?", peerID)
+
+	if rpcMethodID != nil {
+		request = request.Where("mtd_id = ?", *rpcMethodID)
+	}
+	query, args, err := request.ToSql()
 	if err != nil {
 		return err
 	}
