@@ -13,5 +13,4 @@ RUN apk add --no-cache libc6-compat
 COPY --from=builder /app/scanner /usr/bin/
 COPY --from=builder /app/api /usr/bin/
 
-COPY --from=builder /app/.secrets /
 COPY --from=builder /app/db /db

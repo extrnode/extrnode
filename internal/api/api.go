@@ -40,7 +40,7 @@ const (
 func NewAPI(cfg config.Config) (*api, error) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	s, err := storage.New(ctx, cfg.Postgres)
+	s, err := storage.New(ctx, cfg.PG)
 	if err != nil {
 		cancelFunc()
 		return nil, fmt.Errorf("storage init: %s", err)
@@ -81,10 +81,8 @@ func (a *api) initApiHandlers() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
 
-	apiGroup := a.router.Group("/api/v1")
-	apiGroup.GET("/info", a.getInfo)
-	apiGroup.GET("/endpoints", a.getEndpointsHandler)
-	apiGroup.GET("/stats", a.getStatsHandler)
+	a.router.GET("/endpoints", a.getEndpointsHandler)
+	a.router.GET("/stats", a.getStatsHandler)
 }
 
 func (a *api) Run() error {

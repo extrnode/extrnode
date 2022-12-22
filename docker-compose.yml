@@ -6,10 +6,10 @@ services:
     image: extrnode-go:latest
     restart: always
     tty: true
-    ports:
-      - "9098:9099"
     depends_on:
       - postgres
+    env_file:
+      - .env
     entrypoint: "scanner"
 
   extrnode-api:
@@ -21,6 +21,8 @@ services:
       - "80:8000"
     depends_on:
       - postgres
+    env_file:
+      - .env
     entrypoint: "api"
 
   swagger-ui:
@@ -45,7 +47,6 @@ services:
       POSTGRES_DB: "${PG_DB}"
     volumes:
       - postgres:/var/lib/postgresql/data
-      - ./docker/postgres:/docker-entrypoint-initdb.d
 
 volumes:
   postgres:

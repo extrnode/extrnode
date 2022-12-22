@@ -63,7 +63,7 @@ func (a *SolanaAdapter) GetNewNodes(peer storage.PeerWithIpAndBlockchain) error 
 
 	nodes, err := a.getNodes(createNodeUrl(peer, peer.IsSSL))
 	if err != nil {
-		return err
+		return fmt.Errorf("getNodes: %s", err)
 	}
 
 	nodes, err = a.filterAndUpdateNodes(nodes)
@@ -73,12 +73,12 @@ func (a *SolanaAdapter) GetNewNodes(peer storage.PeerWithIpAndBlockchain) error 
 
 	records, err := asn.GetWhoisRecords(nodes)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetWhoisRecords: %s", err)
 	}
 
 	err = a.insertData(records)
 	if err != nil {
-		return err
+		return fmt.Errorf("insertData: %s", err)
 	}
 
 	return nil

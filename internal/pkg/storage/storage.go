@@ -19,17 +19,15 @@ type PgStorage struct {
 }
 
 func New(ctx context.Context, cfg config.PostgresConfig) (s PgStorage, err error) {
+	// DialTimeout default is 5s
 	db := pg.Connect(&pg.Options{
-		Addr:            fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		User:            cfg.User,
-		Password:        cfg.Pass,
-		Database:        cfg.Database,
-		DialTimeout:     5 * time.Second,
-		ReadTimeout:     5 * time.Second,
-		WriteTimeout:    5 * time.Second,
-		PoolTimeout:     20 * time.Second,
-		ApplicationName: "extrnode-go",
-	})
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		User:     cfg.User,
+		Password: cfg.Pass,
+		Database: cfg.DB,
+	}).
+		WithContext(ctx).
+		WithTimeout(5 * time.Second)
 
 	err = db.Ping(ctx)
 	if err != nil {

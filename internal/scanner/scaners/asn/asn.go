@@ -2,6 +2,7 @@ package asn
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,8 @@ import (
 )
 
 const whoisServiceAddress = "whois.cymru.com:43"
+
+var ErrEmptyCountryName = errors.New("empty country name")
 
 func formMsg(addrs []models.NodeInfo) []byte {
 	var msg = "begin\nverbose\n"
@@ -52,7 +55,10 @@ func GetWhoisRecords(addrs []models.NodeInfo) (res []models.NodeInfo, err error)
 
 		asnInfo, err := parse(output)
 		if err != nil {
-			log.Logger.Scanner.Warn("asnScaner.GetWhoisRecords: Parse: ", err)
+			if !errors.Is(err, ErrEmptyCountryName) {
+				log.Logger.Scanner.Warn("asnScaner.GetWhoisRecords: Parse: ", err)
+			}
+
 			continue
 		}
 
@@ -70,6 +76,9 @@ func parse(input string) (output models.AsnInfo, err error) {
 	}
 
 	countryName := strings.TrimSpace(s[3])
+	if countryName == "" {
+		return output, ErrEmptyCountryName
+	}
 	cc := countries.ByName(countryName)
 	if !cc.IsValid() {
 		return output, fmt.Errorf("fail to get country by name: %s", countryName)

@@ -21,10 +21,6 @@ const (
 	solanaBlockchain = "solana"
 )
 
-func (a *api) getInfo(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, nil)
-}
-
 func (a *api) getStatsHandler(ctx echo.Context) error {
 	res, err := a.getStats()
 	if err != nil {

@@ -16,13 +16,13 @@ const (
 
 type flags struct {
 	logLevel string
-	config   string
+	envFile  string
 }
 
 // Setup flags
 func getFlags() (f flags) {
 	flag.StringVar(&f.logLevel, "log", "debug", "log level [debug|info|warn|error|crit]")
-	flag.StringVar(&f.config, "conf", "./config.yml", "path to .env file")
+	flag.StringVar(&f.envFile, "envFile", "", "path to .env file")
 	flag.Parse()
 
 	return
@@ -35,9 +35,9 @@ func main() {
 		log.Logger.Scanner.Fatalf("Log setup: %s", err)
 	}
 
-	cfg, err := config.LoadFile(f.config)
+	cfg, err := config.LoadFile(f.envFile)
 	if err != nil {
-		log.Logger.Scanner.Fatalf("Config error: %s", err)
+		log.Logger.Scanner.Fatalf("Config: %s", err)
 	}
 
 	app, err := scanner.NewScanner(cfg)

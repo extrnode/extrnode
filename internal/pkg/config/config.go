@@ -1,70 +1,59 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 
-	"gopkg.in/yaml.v3"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
-// Config is the top-level configuration for Prometheus's config files.
+// struct field names are used for env variable names. Edit with care
 type Config struct {
-	Scanner  ScannerConfig  `yaml:"scanner"`
-	API      ApiConfig      `yaml:"api"`
-	Postgres PostgresConfig `yaml:"postgres"`
-	Metrics  MetricsConfig  `yaml:"metrics"`
+	Scanner ScannerConfig
+	API     ApiConfig
+	PG      PostgresConfig
+	//Metrics  MetricsConfig
 }
 
 type ScannerConfig struct {
-	ThreadsNum int `yaml:"threads_num"`
+	ThreadsNum int `required:"true" split_words:"true"`
 }
 
 type ApiConfig struct {
-	Port int `yaml:"port"`
+	Port int `required:"true" split_words:"true"`
 }
 
 type PostgresConfig struct {
-	Host           string `yaml:"host"`
-	Port           uint64 `yaml:"port"`
-	User           string `yaml:"user"`
-	Pass           string `yaml:"pass"`
-	Database       string `yaml:"database"`
-	MigrationsPath string `yaml:"migrations_path"`
+	Host           string `required:"true" split_words:"true"`
+	Port           uint64 `required:"true" split_words:"true"`
+	User           string `required:"true" split_words:"true"`
+	Pass           string `required:"true" split_words:"true"`
+	DB             string `required:"true" split_words:"true"`
+	MigrationsPath string `required:"true" split_words:"true"`
 }
 
 type MetricsConfig struct {
-	IsEnabled bool `yaml:"is_enabled"`
-	Port      int  `yaml:"port"`
+	IsEnabled bool `required:"true" split_words:"true"`
+	Port      int  `required:"true" split_words:"true"`
 }
 
-// LoadFile parses the given YAML file into a Config.
-func LoadFile(filename string) (c Config, err error) {
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return c, err
-	}
-	cfg, err := Load(content)
-	if err != nil {
-		return c, fmt.Errorf("parsing YAML file %s: %s", filename, err)
+func LoadFile(envFile string) (c Config, err error) {
+	if envFile != "" {
+		err = godotenv.Load(envFile)
+		if err != nil {
+			return c, fmt.Errorf("godotenv.Load: %s", err)
+		}
 	}
 
-	err = cfg.validate()
+	err = envconfig.Process("", &c)
 	if err != nil {
-		return c, fmt.Errorf("validate %s: %s", filename, err)
+		return c, fmt.Errorf("envconfig.Process: %s", err)
 	}
 
-	return cfg, nil
-}
-
-// Load parses the YAML input s into a Config.
-func Load(s []byte) (cfg Config, err error) {
-	d := yaml.NewDecoder(bytes.NewBuffer(s))
-	d.KnownFields(true)
-	err = d.Decode(&cfg)
+	err = c.validate()
 	if err != nil {
-		return cfg, err
+		return c, fmt.Errorf("validate %s: %s", envFile, err)
 	}
 
-	return cfg, nil
+	return c, nil
 }

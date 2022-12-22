@@ -6,7 +6,6 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 
-	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 )
 
@@ -43,8 +42,6 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	_, isValidator := a.voteAccountsNodePubkey[peer.NodePubkey] // peer.NodePubkey can be empty on first iteration
 	rpcClient, isSSL, err := a.getValidRpc(peer)
 	if err != nil {
-		log.Logger.Scanner.Errorf("ScanMethods finished with error prdId %d: %s", peer.ID, reformatSolanaRpcError(err))
-
 		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator, true)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 1: %s", err)
@@ -59,8 +56,6 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 	// skip method checking for devnet
 	if hash != solanaMainNetGenesisHash {
-		log.Logger.Scanner.Debugf("ScanMethods skip dennet peer prdId %d", peer.ID)
-
 		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator, true)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 2: %s", err)
@@ -74,7 +69,6 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	for m := range methods {
 		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(m), rpcClient, a.ctx)
 		if err != nil {
-			log.Logger.Scanner.Warn("ScanMethods: checkRpcMethod: ", err)
 			continue
 		}
 

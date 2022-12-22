@@ -27,7 +27,7 @@ type scanner struct {
 func NewScanner(cfg config.Config) (*scanner, error) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	s, err := storage.New(ctx, cfg.Postgres)
+	s, err := storage.New(ctx, cfg.PG)
 	if err != nil {
 		cancelFunc()
 		return nil, fmt.Errorf("storage init: %s", err)

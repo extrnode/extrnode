@@ -1,3 +1,7 @@
+CREATE SCHEMA IF NOT EXISTS rpc;
+CREATE SCHEMA IF NOT EXISTS geo;
+CREATE SCHEMA IF NOT EXISTS scanner;
+
 create table if not exists blockchains
 (
 	blc_id smallserial not null
@@ -202,8 +206,8 @@ INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchai
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTransactionCount');
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountsByOwner');
 
--- initial solana host http://api.mainnet-beta.solana.com
-INSERT INTO geo.countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('NL', 'NLD', 'Netherlands');
-INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo.countries WHERE cnt_alpha2 = 'NL'), '178.237.58.0/24', 56504, 'HOSTCIRCLE-L-, NL');
-INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo.networks WHERE ntw_mask = '178.237.58.0/24'), '178.237.58.144');
-INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '178.237.58.0/24') AND ip_addr = '178.237.58.144'), 80, '1.14.10', true, true, false, true);
+-- initial solana host
+INSERT INTO geo.countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('SG', 'SGP', 'Singapore');
+INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo.countries WHERE cnt_alpha2 = 'SG'), '122.11.149.0/24', 4657, 'STARHUB-INTERNET StarHub Ltd, SG');
+INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo.networks WHERE ntw_mask = '122.11.149.0/24'), '122.11.149.168');
+INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '122.11.149.0/24') AND ip_addr = '122.11.149.168'), 8899, '1.13.5', true, true, false, true, 'Htypy9WC7gMMt2F8qExtg9Hc6NSxW5XZ59QCB89fqrWR', false);

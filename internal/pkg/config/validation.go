@@ -6,7 +6,7 @@ func (c Config) validate() error {
 	if err := c.API.validate(); err != nil {
 		return fmt.Errorf("api: %s", err)
 	}
-	if err := c.Postgres.validate(); err != nil {
+	if err := c.PG.validate(); err != nil {
 		return fmt.Errorf("postgres: %s", err)
 	}
 
