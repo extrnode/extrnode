@@ -52,7 +52,9 @@ func (a *SolanaAdapter) getNodes(host string) (nodes []models.NodeInfo, err erro
 		if err != nil {
 			return nodes, fmt.Errorf("getNodeIpAndVersion gossip: %s", err)
 		}
-		nodes = append(nodes, nodeInfo)
+		if !nodeInfo.IP.IsLoopback() && !nodeInfo.IP.IsPrivate() {
+			nodes = append(nodes, nodeInfo)
+		}
 
 		if node.RPC != nil && *node.RPC != *node.Gossip {
 			nodeInfo, err = a.getNodeIpAndVersion(*node.RPC, *node.Version, node.Pubkey)
@@ -60,7 +62,9 @@ func (a *SolanaAdapter) getNodes(host string) (nodes []models.NodeInfo, err erro
 				return nodes, fmt.Errorf("getNodeIpAndVersion rpc: %s", err)
 			}
 
-			nodes = append(nodes, nodeInfo)
+			if !nodeInfo.IP.IsLoopback() && !nodeInfo.IP.IsPrivate() {
+				nodes = append(nodes, nodeInfo)
+			}
 		}
 	}
 
