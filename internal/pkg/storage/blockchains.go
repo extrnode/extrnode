@@ -26,8 +26,14 @@ func (p *PgStorage) GetOrCreateBlockchain(name string) (id int, err error) {
 		return id, err
 	}
 
+	s, err := p.BeginTx()
+	if err != nil {
+		return id, fmt.Errorf("beginTx: %s", err)
+	}
+	defer s.Rollback()
+
 	m := Blockchain{}
-	_, err = p.db.QueryOne(&m, query, args...)
+	_, err = s.db.QueryOne(&m, query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return id, fmt.Errorf("select: %s", err)
 	}
@@ -36,10 +42,15 @@ func (p *PgStorage) GetOrCreateBlockchain(name string) (id int, err error) {
 		query = `INSERT INTO blockchains (blc_name)
 			VALUES (?) RETURNING blc_id`
 
-		_, err = p.db.QueryOne(&m, query, name)
+		_, err = s.db.QueryOne(&m, query, name)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
 		}
+	}
+
+	err = s.Commit()
+	if err != nil {
+		return id, fmt.Errorf("commit: %s", err)
 	}
 
 	return m.ID, nil

@@ -30,8 +30,14 @@ func (p *PgStorage) GetOrCreateGeoNetwork(countryID int, mask net.IPNet, as int,
 		return id, err
 	}
 
+	s, err := p.BeginTx()
+	if err != nil {
+		return id, fmt.Errorf("beginTx: %s", err)
+	}
+	defer s.Rollback()
+
 	m := GeoNetwork{}
-	_, err = p.db.QueryOne(&m, query, args...)
+	_, err = s.db.QueryOne(&m, query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return id, fmt.Errorf("select: %s", err)
 	}
@@ -40,10 +46,15 @@ func (p *PgStorage) GetOrCreateGeoNetwork(countryID int, mask net.IPNet, as int,
 		query = `INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name)
 			VALUES (?, ?, ?, ?) RETURNING ntw_id`
 
-		_, err = p.db.QueryOne(&m, query, countryID, mask, as, name)
+		_, err = s.db.QueryOne(&m, query, countryID, mask, as, name)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
 		}
+	}
+
+	err = s.Commit()
+	if err != nil {
+		return id, fmt.Errorf("commit: %s", err)
 	}
 
 	return m.ID, nil

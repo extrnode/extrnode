@@ -29,7 +29,13 @@ func (p *PgStorage) GetOrCreateIP(networkID int, address net.IP) (id int, err er
 	}
 
 	m := IP{}
-	_, err = p.db.QueryOne(&m, query, args...)
+	s, err := p.BeginTx()
+	if err != nil {
+		return id, fmt.Errorf("beginTx: %s", err)
+	}
+	defer s.Rollback()
+
+	_, err = s.db.QueryOne(&m, query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return id, fmt.Errorf("select: %s", err)
 	}
@@ -38,10 +44,15 @@ func (p *PgStorage) GetOrCreateIP(networkID int, address net.IP) (id int, err er
 		query = `INSERT INTO ips (ntw_id, ip_addr)
 			VALUES (?, ?) RETURNING ip_id`
 
-		_, err = p.db.QueryOne(&m, query, networkID, address)
+		_, err = s.db.QueryOne(&m, query, networkID, address)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
 		}
+	}
+
+	err = s.Commit()
+	if err != nil {
+		return id, fmt.Errorf("commit: %s", err)
 	}
 
 	return m.ID, nil
