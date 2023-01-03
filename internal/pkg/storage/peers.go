@@ -58,7 +58,13 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	}
 
 	m := Peer{}
-	_, err = p.db.QueryOne(&m, query, args...)
+	s, err := p.BeginTx()
+	if err != nil {
+		return id, fmt.Errorf("beginTx: %s", err)
+	}
+	defer s.Rollback()
+
+	_, err = s.db.QueryOne(&m, query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return id, fmt.Errorf("select: %s", err)
 	}
@@ -67,9 +73,14 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 		query = `INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_is_validator, prs_node_pubkey)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING prs_id`
 
-		_, err = p.db.QueryOne(&m, query, blockchainID, ipID, port, version, isRpc, isAlive, isSSL, isMainNet, isValidator, nodePubkey)
+		_, err = s.db.QueryOne(&m, query, blockchainID, ipID, port, version, isRpc, isAlive, isSSL, isMainNet, isValidator, nodePubkey)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
+		}
+
+		err = s.Commit()
+		if err != nil {
+			return id, fmt.Errorf("commit: %s", err)
 		}
 	}
 

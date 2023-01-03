@@ -35,7 +35,13 @@ func (p *PgStorage) GetOrCreateRpcMethod(blockchainID int, name string) (id int,
 	}
 
 	m := RpcMethod{}
-	_, err = p.db.QueryOne(m, query, args...)
+	s, err := p.BeginTx()
+	if err != nil {
+		return id, fmt.Errorf("beginTx: %s", err)
+	}
+	defer s.Rollback()
+
+	_, err = s.db.QueryOne(m, query, args...)
 	if err != nil && err != pg.ErrNoRows {
 		return id, fmt.Errorf("select: %s", err)
 	}
@@ -44,10 +50,15 @@ func (p *PgStorage) GetOrCreateRpcMethod(blockchainID int, name string) (id int,
 		query = `INSERT INTO rpc.methods (blc_id, mtd_name)
 			VALUES (?, ?) RETURNING mtd_id`
 
-		_, err = p.db.QueryOne(m, query, blockchainID, name)
+		_, err = s.db.QueryOne(m, query, blockchainID, name)
 		if err != nil {
 			return id, fmt.Errorf("insert: %s", err)
 		}
+	}
+
+	err = s.Commit()
+	if err != nil {
+		return id, fmt.Errorf("commit: %s", err)
 	}
 
 	return m.ID, nil
