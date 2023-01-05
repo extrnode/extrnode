@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.extrnode.tk"
+      "url": "/"
     }
   ],
   "paths": {
