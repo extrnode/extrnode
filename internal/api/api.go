@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"net/http"
 	"sync"
@@ -15,6 +16,11 @@ import (
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 )
+
+// holds swagger static web server content.
+//
+//go:embed swaggerui
+var swaggerDist embed.FS
 
 type api struct {
 	port    uint64
@@ -83,6 +89,9 @@ func (a *api) initApiHandlers() {
 
 	a.router.GET("/endpoints", a.getEndpointsHandler)
 	a.router.GET("/stats", a.getStatsHandler)
+
+	// api docs
+	a.router.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
 }
 
 func (a *api) Run() error {
