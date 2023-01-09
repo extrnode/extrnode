@@ -111,7 +111,7 @@
               "text/csv": {
                 "schema": {
                   "type": "string",
-                  "example": "endpoint,version,ntw_as,network,country,is_rpc,is_validator\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false\n"
+                  "example": "endpoint,version,ntw_as,network,country,is_rpc,is_validator,is_ssl\n127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false,false\n"
                 }
               },
               "text/plain": {
@@ -190,6 +190,9 @@
             "type": "boolean"
           },
           "is_validator": {
+            "type": "boolean"
+          },
+          "is_ssl": {
             "type": "boolean"
           },
           "asn_info": {

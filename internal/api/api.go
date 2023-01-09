@@ -8,12 +8,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gagliardetto/solana-go"
+	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
+	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/metrics"
 	"extrnode-be/internal/pkg/storage"
 )
 
@@ -23,16 +27,17 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	port    uint64
-	router  *echo.Echo
-	storage storage.PgStorage
-	cache   *cache.Cache
+	port      uint64
+	router    *echo.Echo
+	storage   storage.PgStorage
+	cache     *cache.Cache
+	waitGroup *sync.WaitGroup
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 
-	waitGroup              *sync.WaitGroup
-	ctx                    context.Context
-	ctxCancel              context.CancelFunc
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
+	apiPrivateKey          solana.PrivateKey
 }
 
 const (
@@ -40,10 +45,19 @@ const (
 	csvOutputFormat     = "csv"
 	haproxyOutputFormat = "haproxy"
 
-	cacheTTL = 5 * time.Minute
+	endpointHeader    = "X-ENDPOINT"
+	signatureHeader   = "X-SIGNATURE"
+	elapsedTimeHeader = "X-ELAPSED-TIME"
+
+	cacheTTL                     = 5 * time.Minute
+	apiReadTimeout               = 5 * time.Second
+	apiWriteTimeout              = 30 * time.Second
+	customTransportDialerTimeout = 2 * time.Second
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
+	// increase uuid generation productivity
+	//uuid.EnableRandPool()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	s, err := storage.New(ctx, cfg.PG)
@@ -56,6 +70,13 @@ func NewAPI(cfg config.Config) (*api, error) {
 	if err != nil {
 		cancelFunc()
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
+	}
+
+	// TODO: get from config
+	privKey, err := solana.NewRandomPrivateKey()
+	if err != nil {
+		cancelFunc()
+		return nil, fmt.Errorf("NewRandomPrivateKey: %s", err)
 	}
 
 	a := &api{
@@ -73,25 +94,52 @@ func NewAPI(cfg config.Config) (*api, error) {
 			haproxyOutputFormat: {},
 		},
 		blockchainIDs: blockchainsMap,
+		apiPrivateKey: privKey,
 	}
 
-	a.initApiHandlers()
+	a.router.Server.ReadTimeout = apiReadTimeout
+	a.router.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
+
+	err = a.initApiHandlers()
+	if err != nil {
+		return nil, fmt.Errorf("initApiHandlers: %s", err)
+	}
 
 	return a, nil
 }
 
-func (a *api) initApiHandlers() {
+func (a *api) initApiHandlers() error {
 	a.router.Use(middleware.Recover())
-	a.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		ErrorMessage: "Request Timeout",
+		Timeout:      apiWriteTimeout,
+	}))
+
+	// prometheus metrics
+	prometheus.NewPrometheus("extrnode", nil, metrics.MetricList()).Use(a.router)
+	metrics.InitStartTime()
+
+	// general rate limit
+	a.router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20))) // req per second
+
+	generalGroup := a.router.Group("", middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
-
-	a.router.GET("/endpoints", a.getEndpointsHandler)
-	a.router.GET("/stats", a.getStatsHandler)
+	generalGroup.GET("/endpoints", a.endpointsHandler)
+	generalGroup.GET("/stats", a.statsHandler)
 
 	// api docs
-	a.router.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
+	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
+
+	// chains
+	chainsGroup := a.router.Group("", middleware.Logger(), middlewares.RequestID())
+	err := a.solanaProxyHandler(chainsGroup)
+	if err != nil {
+		return fmt.Errorf("solanaProxyHandler: %s", err)
+	}
+
+	return nil
 }
 
 func (a *api) Run() error {

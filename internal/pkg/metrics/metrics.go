@@ -1,122 +1,119 @@
 package metrics
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net/http"
-	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
+	"github.com/labstack/echo-contrib/prometheus"
+	prom "github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	MetricsNamespace = "io_extrnode"
-
-	DefaultShutdownTimeout = 5 * time.Second
-
-	// HTTP server defaults.
-	DefaultReadTimeout       = 5 * time.Second
-	DefaultReadHeaderTimeout = 5 * time.Second
-	DefaultWriteTimeout      = 5 * time.Second
+	gaugeMetricType        = "gauge"
+	counterVecMetricType   = "counter_vec"
+	histogramVecMetricType = "histogram_vec"
 )
 
+// See the NewMetrics func for proper descriptions and prometheus names!
+// In case you add a metric here later, make sure to include it in the
+// MetricsList method or you'll going to have a bad time.
 var (
-	// Errors
-	ErrorServerAlreadyRunning error = errors.New("HTTP server is already running")
+	metrics struct {
+		startTime              *prometheus.Metric
+		userFailedRequestsCnt  *prometheus.Metric
+		nodeFailedRequestsCnt  *prometheus.Metric
+		successRequestsCnt     *prometheus.Metric
+		processingTime         *prometheus.Metric
+		nodeResponseTime       *prometheus.Metric
+		nodeAttemptsPerRequest *prometheus.Metric
+	}
+
+	metricList []*prometheus.Metric
 )
 
-// Metrics contains all set of methods to manage metrics collector instance behavior
-type Metrics interface {
-	StartHTTP(port int) error
-	StopHTTP()
-
-	gaugeMethods
-	counterMethods
-	histogramMethods
-	summaryMethods
+// Needed by echo-contrib so echo can register and collect these metrics
+func MetricList() []*prometheus.Metric {
+	return metricList
 }
 
-// metricsHandler implements Metrics interface.
-type metricsHandler struct {
-	sync.Mutex
-	registry *prometheus.Registry
-	server   *http.Server
+// Creates and populates a new Metrics struct
+// This is where all the prometheus metrics, names and labels are specified
+func init() {
+	initMetric(&metrics.startTime, &prometheus.Metric{
+		ID:          "startTime",
+		Name:        "start_time",
+		Description: "api start time",
+		Type:        gaugeMetricType,
+	})
+	initMetric(&metrics.userFailedRequestsCnt, &prometheus.Metric{
+		ID:          "userFailedRequestsCnt",
+		Name:        "user_failed_requests",
+		Description: "processing error due to user",
+		Type:        counterVecMetricType,
+		Args:        []string{"chain"},
+	})
+	initMetric(&metrics.nodeFailedRequestsCnt, &prometheus.Metric{
+		ID:          "nodeFailedRequestsCnt",
+		Name:        "node_failed_requests",
+		Description: "processing error due to node",
+		Type:        counterVecMetricType,
+		Args:        []string{"chain"},
+	})
+	initMetric(&metrics.successRequestsCnt, &prometheus.Metric{
+		ID:          "successRequestsCnt",
+		Name:        "success_requests",
+		Description: "successfully handled requests by node",
+		Type:        counterVecMetricType,
+		Args:        []string{"chain"},
+	})
+	initMetric(&metrics.processingTime, &prometheus.Metric{
+		ID:          "processingTime",
+		Name:        "processing_time",
+		Description: "the time it took to process the request",
+		Type:        histogramVecMetricType,
+		Args:        []string{"chain"},
+	})
+	initMetric(&metrics.nodeResponseTime, &prometheus.Metric{
+		ID:          "nodeResponseTime",
+		Name:        "node_response_time",
+		Description: "the time it took to fetch data from node",
+		Type:        histogramVecMetricType,
+		Args:        []string{"chain", "node"},
+	})
+	initMetric(&metrics.nodeAttemptsPerRequest, &prometheus.Metric{
+		ID:          "nodeAttemptsPerRequest",
+		Name:        "node_attempts_per_request",
+		Description: "attempts to fetch data from node",
+		Type:        histogramVecMetricType,
+		Args:        []string{"chain"},
+	})
 }
 
-// NewMetrics creates a new metrics handler and returns its interface.
-func NewMetrics() Metrics {
-	return &metricsHandler{
-		registry: prometheus.NewRegistry(),
-	}
+func initMetric(dest **prometheus.Metric, metric *prometheus.Metric) {
+	*dest = metric
+	metricList = append(metricList, metric)
 }
 
-// StartHTTP opens and listens HTTP route to let external Prometheus to collect metrics.
-func (m *metricsHandler) StartHTTP(port int) error {
-	m.Lock()
-	defer m.Unlock()
-
-	if port == 0 {
-		return errors.New("bad param: port")
-	}
-
-	if m.server != nil {
-		return ErrorServerAlreadyRunning
-	}
-
-	listen := fmt.Sprintf(":%d", port)
-	m.server = &http.Server{
-		Addr:              listen,
-		ReadTimeout:       DefaultReadTimeout,
-		ReadHeaderTimeout: DefaultReadHeaderTimeout,
-		WriteTimeout:      DefaultWriteTimeout,
-
-		Handler: http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == http.MethodGet {
-					promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
-				}
-			}),
-	}
-
-	go func(srv *http.Server) {
-		for {
-			log.Debugf("prometheus service starts listening '%s'", listen)
-			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-				log.Errorf("prometheus service failed: %s", err)
-			}
-
-			time.Sleep(time.Second)
-		}
-	}(m.server)
-
-	return nil
+func InitStartTime() {
+	metrics.startTime.MetricCollector.(prom.Gauge).Set(float64(time.Now().UTC().Unix()))
 }
 
-// StopHTTP stops running metrics provider HTTP server.
-func (m *metricsHandler) StopHTTP() {
-	m.Lock()
-	defer m.Unlock()
+// TODO: use after adding error types
+func IncUserFailedRequestsCnt(chain string) {
+	metrics.userFailedRequestsCnt.MetricCollector.(*prom.CounterVec).WithLabelValues(chain).Inc()
+}
+func IncNodeFailedRequestsCnt(chain string) {
+	metrics.nodeFailedRequestsCnt.MetricCollector.(*prom.CounterVec).WithLabelValues(chain).Inc()
+}
+func IncSuccessRequestsCnt(chain string) {
+	metrics.successRequestsCnt.MetricCollector.(*prom.CounterVec).WithLabelValues(chain).Inc()
+}
 
-	if m.server == nil {
-		log.Debug("metrics HTTP server is not running")
-		return
-	}
-
-	log.Debug("metrics HTTP server is stopping...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
-	defer func() {
-		m.server = nil
-		cancel()
-	}()
-
-	if err := m.server.Shutdown(ctx); err != nil {
-		log.Errorf("metrics HTTP server stop error: %s", err)
-	} else {
-		log.Debug("metrics HTTP server has been stopped")
-	}
+func ObserveProcessingTime(chain string, d time.Duration) {
+	metrics.processingTime.MetricCollector.(*prom.HistogramVec).WithLabelValues(chain).Observe(float64(d.Milliseconds()))
+}
+func ObserveNodeResponseTime(chain, node string, d time.Duration) {
+	metrics.nodeResponseTime.MetricCollector.(*prom.HistogramVec).WithLabelValues(chain, node).Observe(float64(d.Milliseconds()))
+}
+func ObserveNodeAttemptsPerRequest(chain string, attempts int) {
+	metrics.nodeAttemptsPerRequest.MetricCollector.(*prom.HistogramVec).WithLabelValues(chain).Observe(float64(attempts))
 }

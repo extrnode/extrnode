@@ -126,9 +126,10 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 	}
 
 	q := sq.Select(`CONCAT(ip_addr, ':', prs_port)  AS endpoint,
-		   prs_version 										  AS version,
-		   prs_is_rpc 										  AS is_rpc,
-		   prs_is_validator 								  AS is_validator,
+		   prs_version,
+		   prs_is_rpc,
+		   prs_is_validator,
+		   prs_is_ssl,
 		   json_agg(json_build_object('name', rpc.methods.mtd_name, 'response_time', rpc.peers_methods.pmd_response_time_ms)) AS supported_methods,
 		   json_build_object('network', ntw_mask, 'isp', ntw_name, 'ntw_as', ntw_as, 'country',
 									  json_build_object('alpha2', cnt_alpha2, 'alpha3', cnt_alpha3, 'name', cnt_name)) AS asn_info`).
