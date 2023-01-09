@@ -21,7 +21,7 @@ const (
 	solanaBlockchain = "solana"
 )
 
-func (a *api) getStatsHandler(ctx echo.Context) error {
+func (a *api) statsHandler(ctx echo.Context) error {
 	res, err := a.getStats()
 	if err != nil {
 		log.Logger.Api.Errorf("getStats: %s", err)
@@ -31,7 +31,7 @@ func (a *api) getStatsHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, res)
 }
 
-func (a *api) getEndpointsHandler(ctx echo.Context) error {
+func (a *api) endpointsHandler(ctx echo.Context) error {
 	var (
 		err error
 		ok  bool
@@ -48,7 +48,7 @@ func (a *api) getEndpointsHandler(ctx echo.Context) error {
 	// TODO: in future will be as a query param
 	blockchainID, ok := a.blockchainIDs[solanaBlockchain]
 	if !ok {
-		err = fmt.Errorf("getEndpointsHandler: fail to get blockchainID")
+		err = fmt.Errorf("endpointsHandler: fail to get blockchainID")
 		log.Logger.Api.Errorf(err.Error())
 		return err
 	}
@@ -102,7 +102,7 @@ func (a *api) getEndpointsHandler(ctx echo.Context) error {
 
 	res, err := a.storage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
-		log.Logger.Api.Errorf("getEndpointsHandler: GetEndpoints: %s", err)
+		log.Logger.Api.Errorf("endpointsHandler: GetEndpoints: %s", err)
 		return err
 	}
 
