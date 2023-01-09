@@ -10,13 +10,15 @@ import (
 	"extrnode-be/internal/pkg/storage"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
+	"extrnode-be/internal/scanner/scaners/nmap"
 )
 
 type scanner struct {
 	cfg     config.Config
 	storage storage.PgStorage
 
-	taskQueue chan scannerTask
+	taskQueue     chan scannerTask
+	nmapTaskQueue chan scannerTask
 
 	waitGroup *sync.WaitGroup
 	ctx       context.Context
@@ -40,13 +42,14 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 	}
 
 	return &scanner{
-		cfg:       cfg,
-		storage:   s,
-		taskQueue: make(chan scannerTask),
-		waitGroup: &sync.WaitGroup{},
-		ctx:       ctx,
-		ctxCancel: cancelFunc,
-		adapters:  map[chainType]adapters.Adapter{chainTypeSolana: solanaAdapter},
+		cfg:           cfg,
+		storage:       s,
+		taskQueue:     make(chan scannerTask),
+		nmapTaskQueue: make(chan scannerTask),
+		waitGroup:     &sync.WaitGroup{},
+		ctx:           ctx,
+		ctxCancel:     cancelFunc,
+		adapters:      map[chainType]adapters.Adapter{chainTypeSolana: solanaAdapter},
 	}, nil
 }
 
@@ -60,9 +63,27 @@ func (s *scanner) Run() error {
 	return nil
 }
 
+func (s *scanner) RunNmap() error {
+	s.runWithWaitGroup(s.ctx, s.scheduleNmap)
+
+	for i := 0; i < s.cfg.Scanner.ThreadsNum; i++ {
+		s.runWithWaitGroup(s.ctx, s.runScanner)
+	}
+
+	return nil
+}
+
+func (s *scanner) getAdapter(task scannerTask) (adapter adapters.Adapter, ok bool) {
+	adapter, ok = s.adapters[task.chain]
+	if !ok {
+		log.Logger.Scanner.Errorf("fail to get adapter for %s", task.chain)
+	}
+
+	return adapter, ok
+}
+
 func (s *scanner) runScanner(ctx context.Context) {
 	var err error
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -70,19 +91,8 @@ func (s *scanner) runScanner(ctx context.Context) {
 			return
 
 		case task := <-s.taskQueue:
-			var (
-				adapter adapters.Adapter
-				ok      bool
-			)
-			switch task.chain {
-			case chainTypeSolana:
-				adapter, ok = s.adapters[task.chain]
-				if !ok {
-					log.Logger.Scanner.Errorf("fail to get adapter for %s", task.chain)
-					continue
-				}
-			default:
-				log.Logger.Scanner.Errorf("adapter not found for chain: %s", task.chain)
+			adapter, ok := s.getAdapter(task)
+			if !ok {
 				continue
 			}
 
@@ -95,6 +105,12 @@ func (s *scanner) runScanner(ctx context.Context) {
 			err = adapter.Scan(task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("Scan (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
+			}
+
+		case task := <-s.nmapTaskQueue:
+			err = nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
+			if err != nil {
+				log.Logger.Scanner.Errorf("NmapCheck (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
 		}
 	}
