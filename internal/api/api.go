@@ -80,7 +80,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
-		port:    uint64(cfg.API.Port),
+		port:    cfg.API.Port,
 		router:  echo.New(),
 		storage: s,
 		cache:   cache.New(cacheTTL, cacheTTL),

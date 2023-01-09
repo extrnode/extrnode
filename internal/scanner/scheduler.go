@@ -9,11 +9,11 @@ import (
 	"extrnode-be/internal/pkg/storage"
 )
 
-const scannerInterval = time.Hour
-
 type chainType string
 
 const chainTypeSolana chainType = "solana"
+const scannerInterval = time.Hour
+const nmapInterval = 3 * time.Hour
 
 type scannerTask struct {
 	peer  storage.PeerWithIpAndBlockchain
@@ -31,9 +31,33 @@ func (s *scanner) updateAdapters() error {
 	return nil
 }
 
+func (s *scanner) scheduleNmap(ctx context.Context) {
+	for {
+		peers, err := s.storage.GetPeers(true)
+		if err != nil {
+			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
+		}
+
+		log.Logger.Scanner.Debugf("scheduleScans: get %d uniq IP for nmap. Creating scanner tasks", len(peers))
+
+		for _, p := range peers {
+			s.nmapTaskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}
+		}
+
+		select {
+		case <-ctx.Done():
+			log.Logger.Scanner.Info("stopping scheduler")
+			return
+
+		case <-time.After(nmapInterval):
+			continue
+		}
+	}
+}
+
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		peers, err := s.storage.GetPeers()
+		peers, err := s.storage.GetPeers(false)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}
