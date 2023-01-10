@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -27,7 +28,8 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	port      uint64
+	addr      string
+	certData  []byte
 	router    *echo.Echo
 	storage   storage.PgStorage
 	cache     *cache.Cache
@@ -62,25 +64,22 @@ func NewAPI(cfg config.Config) (*api, error) {
 
 	s, err := storage.New(ctx, cfg.PG)
 	if err != nil {
-		cancelFunc()
 		return nil, fmt.Errorf("storage init: %s", err)
 	}
 
 	blockchainsMap, err := s.GetBlockchainsMap()
 	if err != nil {
-		cancelFunc()
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
 
 	// TODO: get from config
 	privKey, err := solana.NewRandomPrivateKey()
 	if err != nil {
-		cancelFunc()
 		return nil, fmt.Errorf("NewRandomPrivateKey: %s", err)
 	}
 
 	a := &api{
-		port:    cfg.API.Port,
+		addr:    fmt.Sprintf(":%d", cfg.API.Port),
 		router:  echo.New(),
 		storage: s,
 		cache:   cache.New(cacheTTL, cacheTTL),
@@ -95,6 +94,13 @@ func NewAPI(cfg config.Config) (*api, error) {
 		},
 		blockchainIDs: blockchainsMap,
 		apiPrivateKey: privKey,
+	}
+
+	if cfg.API.CertFile != "" {
+		a.certData, err = os.ReadFile(cfg.API.CertFile)
+		if err != nil {
+			return nil, fmt.Errorf("fail to read certificate (%s): %s", cfg.API.CertFile, err)
+		}
 	}
 
 	a.router.Server.ReadTimeout = apiReadTimeout
@@ -142,7 +148,7 @@ func (a *api) initApiHandlers() error {
 	return nil
 }
 
-func (a *api) Run() error {
+func (a *api) Run() (err error) {
 	go func() {
 		<-a.ctx.Done()
 		err := a.router.Shutdown(context.Background())
@@ -151,7 +157,11 @@ func (a *api) Run() error {
 		}
 	}()
 
-	err := a.router.Start(fmt.Sprintf(":%d", a.port))
+	if len(a.certData) != 0 {
+		err = a.router.StartTLS(a.addr, a.certData, a.certData)
+	} else {
+		err = a.router.Start(a.addr)
+	}
 	if err != http.ErrServerClosed {
 		return err
 	}

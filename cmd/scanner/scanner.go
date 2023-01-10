@@ -45,14 +45,6 @@ func main() {
 		log.Logger.Scanner.Fatalf("scanner error: %s", err)
 	}
 
-	// Metrics
-	// if conf.Metrics.IsEnabled {
-	// 	err = metrics.StartHTTP(conf.Metrics.Port)
-	// 	if err != nil {
-	// 		log.Logger.Scanner.Fatalf("Metrics: %s", err)
-	// 	}
-	// }
-
 	// Run service
 	go func() {
 		err := app.Run()
