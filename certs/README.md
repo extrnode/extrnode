@@ -1,0 +1,1 @@
+place your .pem cert into this dir for docker image

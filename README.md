@@ -20,6 +20,7 @@ CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/api
 
 ## Build and Deployment (via [docker-compose.yml](docker-compose.yml))
 - place filled [.env](.env.example) file into project root folder
+- add your certificates for https server in `certs` dir (optional)
 - build:
 ```
 make build
@@ -48,6 +49,8 @@ SCANNER_THREADS_NUM=20
 # api 
 # servert port
 API_PORT=8000
+# path to certs for https (optional)
+API_CERT_FILE=certs/api.pem
 
 # database connection properties
 PG_HOST=localhost
