@@ -7,6 +7,7 @@ The results get written to DB.
 - install golang 1.19
 - install Postgresql 11
 - create a Postgresql DB 
+- install nmap from official site (https://nmap.org/)
 - setup env vars from [.env.example](.env.example) file
 - compile programs:
 

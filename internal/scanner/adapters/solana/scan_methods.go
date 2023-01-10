@@ -11,13 +11,13 @@ import (
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool) error {
+func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
 	err := a.storage.CreateScannerPeer(peer.ID, now, 0, isALive)
 	if err != nil {
 		return fmt.Errorf("CreateScannerPeer: %s", err)
 	}
 
-	err = a.storage.UpdatePeerByID(peer.ID, isRpc, isALive, isSSL, isMainNet, isValidator)
+	err = a.storage.UpdatePeerByID(peer.ID, isRpc, isALive, isSSL, isMainNet, isValidator, version)
 	if err != nil {
 		return fmt.Errorf("UpdatePeerByID: %s", err)
 	}
@@ -40,9 +40,9 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 
 	_, isValidator := a.voteAccountsNodePubkey[peer.NodePubkey] // peer.NodePubkey can be empty on first iteration
-	rpcClient, isSSL, err := a.getValidRpc(peer)
+	rpcClient, isSSL, version, err := a.getValidRpc(peer)
 	if err != nil {
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator, true)
+		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator, true, version) // version may be empty
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 1: %s", err)
 		}
@@ -56,7 +56,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 	// skip method checking for devnet
 	if hash != solanaMainNetGenesisHash {
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator, true)
+		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator, true, version)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 2: %s", err)
 		}
@@ -93,7 +93,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 
 	// isMainNet == true because devnet is skipped
-	err = a.updatePeerInfo(peer, now, isAlive, isRpc, isSSL, true, isValidator, false)
+	err = a.updatePeerInfo(peer, now, isAlive, isRpc, isSSL, true, isValidator, false, version)
 	if err != nil {
 		return fmt.Errorf("updatePeerInfo 3: %s", err)
 	}
