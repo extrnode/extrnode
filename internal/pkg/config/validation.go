@@ -17,10 +17,6 @@ func (c Config) validate() error {
 }
 
 func (a ApiConfig) validate() error {
-	if a.Port == 0 {
-		return fmt.Errorf("invalid port")
-	}
-
 	return nil
 }
 

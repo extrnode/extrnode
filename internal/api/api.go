@@ -28,7 +28,6 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	addr      string
 	certData  []byte
 	router    *echo.Echo
 	storage   storage.PgStorage
@@ -55,6 +54,8 @@ const (
 	apiReadTimeout               = 5 * time.Second
 	apiWriteTimeout              = 30 * time.Second
 	customTransportDialerTimeout = 2 * time.Second
+
+	apiPort = 8000
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
@@ -79,7 +80,6 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
-		addr:    fmt.Sprintf(":%d", cfg.API.Port),
 		router:  echo.New(),
 		storage: s,
 		cache:   cache.New(cacheTTL, cacheTTL),
@@ -157,10 +157,11 @@ func (a *api) Run() (err error) {
 		}
 	}()
 
+	addr := fmt.Sprintf(":%d", apiPort)
 	if len(a.certData) != 0 {
-		err = a.router.StartTLS(a.addr, a.certData, a.certData)
+		err = a.router.StartTLS(addr, a.certData, a.certData)
 	} else {
-		err = a.router.Start(a.addr)
+		err = a.router.Start(addr)
 	}
 	if err != http.ErrServerClosed {
 		return err
