@@ -87,14 +87,14 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	return m.ID, nil
 }
 
-func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet, isValidator bool) (err error) {
+func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet, isValidator bool, version string) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
 
-	query := `UPDATE peers SET prs_is_rpc = ?, prs_is_alive = ?, prs_is_ssl = ?, prs_is_main_net = ?, prs_is_validator = ?
+	query := `UPDATE peers SET prs_is_rpc = ?, prs_is_alive = ?, prs_is_ssl = ?, prs_is_main_net = ?, prs_is_validator = ?, prs_version = ?
 			WHERE prs_id = ?`
-	_, err = p.db.Exec(query, isRpc, isAlive, isSSL, isMainNet, isValidator, peerID)
+	_, err = p.db.Exec(query, isRpc, isAlive, isSSL, isMainNet, isValidator, version, peerID)
 	if err != nil {
 		return err
 	}
@@ -102,14 +102,14 @@ func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet,
 	return nil
 }
 
-func (p *PgStorage) UpdatePeerVersionAndNodePubkey(peerID int, version, nodePubkey string) (err error) {
+func (p *PgStorage) UpdatePeerNodePubkey(peerID int, nodePubkey string) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
 
-	query := `UPDATE peers SET prs_version = ?, prs_node_pubkey = ?
+	query := `UPDATE peers SET prs_node_pubkey = ?
 			WHERE prs_id = ?`
-	_, err = p.db.Exec(query, version, nodePubkey, peerID)
+	_, err = p.db.Exec(query, nodePubkey, peerID)
 	if err != nil {
 		return err
 	}
@@ -126,9 +126,10 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 	}
 
 	q := sq.Select(`CONCAT(ip_addr, ':', prs_port)  AS endpoint,
-		   prs_version 										  AS version,
-		   prs_is_rpc 										  AS is_rpc,
-		   prs_is_validator 								  AS is_validator,
+		   prs_version,
+		   prs_is_rpc,
+		   prs_is_validator,
+		   prs_is_ssl,
 		   json_agg(json_build_object('name', rpc.methods.mtd_name, 'response_time', rpc.peers_methods.pmd_response_time_ms)) AS supported_methods,
 		   json_build_object('network', ntw_mask, 'isp', ntw_name, 'ntw_as', ntw_as, 'country',
 									  json_build_object('alpha2', cnt_alpha2, 'alpha3', cnt_alpha3, 'name', cnt_name)) AS asn_info`).
@@ -172,8 +173,13 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 	return res, nil
 }
 
-func (p *PgStorage) GetPeers() (res []PeerWithIpAndBlockchain, err error) {
-	query, args, err := sq.Select("prs_id, blc_id, blc_name, ip_id, ip_addr, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator").
+func (p *PgStorage) GetPeers(isUniqIP bool) (res []PeerWithIpAndBlockchain, err error) {
+	s := "prs_id, blc_id, blc_name, ip_id, ip_addr, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator"
+	if isUniqIP {
+		s = fmt.Sprintf("DISTINCT on (ip_id) %s", s)
+	}
+
+	query, args, err := sq.Select(s).
 		From(peersTable).
 		LeftJoin(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
 		LeftJoin(fmt.Sprintf("%s USING(blc_id)", blockchainsTable)).

@@ -68,7 +68,7 @@ func formResponseArray(addrs []models.NodeInfo, read *bufio.Reader, isAddCountry
 
 func GetWhoisRecords(addrs []models.NodeInfo) (res []models.NodeInfo, err error) {
 	if len(addrs) == 0 {
-		return res, nil
+		return
 	}
 
 	conn, err := net.Dial("tcp", whoisServiceAddress)

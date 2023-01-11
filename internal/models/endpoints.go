@@ -2,16 +2,13 @@ package models
 
 type (
 	Endpoint struct {
-		Endpoint         string `json:"endpoint" pg:"endpoint"`
-		Version          string `json:"version"  pg:"version"`
-		SupportedMethods []struct {
-			Name         string `json:"name"  pg:"name"`
-			ResponseTime int64  `json:"response_time"  pg:"response_time"`
-		} `json:"supported_methods" pg:"supported_methods"`
-		//UnscannedMethods []string `json:"unscanned_methods" pg:"unscanned_methods"`
-		IsRpc       bool    `json:"is_rpc" pg:"is_rpc"`
-		IsValidator bool    `json:"is_validator" pg:"is_validator"`
-		AsnInfo     AsnInfo `json:"asn_info" pg:"asn_info"`
+		Endpoint         string           `json:"endpoint" pg:"endpoint"`
+		Version          string           `json:"version"  pg:"prs_version"`
+		SupportedMethods SupportedMethods `json:"supported_methods" pg:"supported_methods"`
+		IsRpc            bool             `json:"is_rpc" pg:"prs_is_rpc"`
+		IsValidator      bool             `json:"is_validator" pg:"prs_is_validator"`
+		IsSsl            bool             `json:"is_ssl" pg:"prs_is_ssl"`
+		AsnInfo          AsnInfo          `json:"asn_info" pg:"asn_info"`
 	}
 	EndpointCsv struct {
 		Endpoint    string `csv:"endpoint"`
@@ -24,15 +21,15 @@ type (
 		IsValidator bool   `csv:"is_validator"`
 	}
 	AsnInfo struct {
-		Network string  `json:"network" pg:"network"`
-		Isp     string  `json:"isp" pg:"isp"`
-		As      int     `json:"ntw_as" pg:"ntw_as"`
-		Country Country `json:"country" pg:"country"`
+		Network string  `json:"network"`
+		Isp     string  `json:"isp"`
+		As      int     `json:"ntw_as"`
+		Country Country `json:"country"`
 	}
 	Country struct {
-		Alpha2 string `json:"alpha2" pg:"alpha2"`
-		Alpha3 string `json:"alpha3" pg:"alpha3"`
-		Name   string `json:"name" pg:"name"`
+		Alpha2 string `json:"alpha2"`
+		Alpha3 string `json:"alpha3"`
+		Name   string `json:"name"`
 	}
 	Stat struct {
 		Total     int `json:"total" pg:"total"`
@@ -41,3 +38,23 @@ type (
 		Validator int `json:"validator" pg:"validator"`
 	}
 )
+
+// helpers
+type (
+	SupportedMethods []struct {
+		Name         string `json:"name"  pg:"name"`
+		ResponseTime int64  `json:"response_time"  pg:"response_time"`
+	}
+)
+
+func (s SupportedMethods) AverageResponseTime() (total int64) {
+	if len(s) == 0 {
+		return total
+	}
+
+	for _, v := range s {
+		total += v.ResponseTime
+	}
+
+	return total / int64(len(s))
+}

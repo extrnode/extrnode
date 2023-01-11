@@ -25,16 +25,6 @@ services:
       - .env
     entrypoint: "api"
 
-  swagger-ui:
-    image: swaggerapi/swagger-ui
-    container_name: "swagger-ui"
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./swagger/swagger.json:/swagger.json
-    environment:
-      SWAGGER_JSON: /swagger.json
-
   postgres:
     container_name: extrnode-postgres
     image: postgres:11
