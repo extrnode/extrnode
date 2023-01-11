@@ -46,20 +46,23 @@ func createRpcWithTimeout(host string) *rpc.Client {
 	return rpc.NewWithCustomRPCClient(jsonrpcClient)
 }
 
-func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (*rpc.Client, bool, error) {
-	rpcClient := createRpcWithTimeout(createNodeUrl(peer, false))
-	_, err := rpcClient.GetVersion(a.ctx)
+func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (rpcClient *rpc.Client, isSSl bool, version string, err error) {
+	rpcClient = createRpcWithTimeout(createNodeUrl(peer, isSSl))
+	versionRes, err := rpcClient.GetVersion(a.ctx)
 	if err != nil {
-		rpcClient = createRpcWithTimeout(createNodeUrl(peer, true))
-		_, err = rpcClient.GetVersion(a.ctx)
+		isSSl = true
+		rpcClient = createRpcWithTimeout(createNodeUrl(peer, isSSl))
+		versionRes, err = rpcClient.GetVersion(a.ctx)
 		if err != nil {
-			return rpcClient, false, err // don't change isSsl in err case
+			return rpcClient, false, version, err // don't change isSsl in err case
 		}
-
-		return rpcClient, true, nil
 	}
 
-	return rpcClient, false, nil
+	if versionRes != nil {
+		version = versionRes.SolanaCore
+	}
+
+	return rpcClient, isSSl, version, nil
 }
 
 func createNodeUrl(p storage.PeerWithIpAndBlockchain, isSSL bool) string {

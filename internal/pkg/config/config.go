@@ -20,7 +20,7 @@ type ScannerConfig struct {
 }
 
 type ApiConfig struct {
-	Port int `required:"true" split_words:"true"`
+	Port uint64 `required:"true" split_words:"true"`
 }
 
 type PostgresConfig struct {
@@ -41,7 +41,7 @@ func LoadFile(envFile string) (c Config, err error) {
 	if envFile != "" {
 		err = godotenv.Load(envFile)
 		if err != nil {
-			return c, fmt.Errorf("godotenv.Load: %s", err)
+			return c, fmt.Errorf("godotenv.Load (%s): %s", envFile, err)
 		}
 	}
 
@@ -52,7 +52,7 @@ func LoadFile(envFile string) (c Config, err error) {
 
 	err = c.validate()
 	if err != nil {
-		return c, fmt.Errorf("validate %s: %s", envFile, err)
+		return c, fmt.Errorf("validate: %s", err)
 	}
 
 	return c, nil

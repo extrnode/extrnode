@@ -61,6 +61,14 @@ func main() {
 		}
 	}()
 
+	// Run nmap
+	go func() {
+		err := app.RunNmap()
+		if err != nil {
+			log.Logger.Scanner.Fatalf("NmapScan: %s", err)
+		}
+	}()
+
 	// Termination handler.
 	util.GracefulStop(app.WaitGroup(), waitTimeout, func() {
 		err = app.Stop()

@@ -98,6 +98,10 @@ func (a *SolanaAdapter) insertData(records []models.NodeInfo) error {
 }
 
 func (a *SolanaAdapter) filterAndUpdateNodes(nodes []models.NodeInfo) (res []models.NodeInfo, err error) {
+	if len(nodes) == 0 {
+		return
+	}
+
 	ips := make([]net.IP, 0, len(nodes))
 	for _, n := range nodes {
 		ips = append(ips, n.IP)
@@ -111,10 +115,10 @@ func (a *SolanaAdapter) filterAndUpdateNodes(nodes []models.NodeInfo) (res []mod
 	for _, n := range nodes {
 		if _, ok := existentPeersMap[n.IP.String()]; ok {
 			if peer, ok := existentPeersMap[n.IP.String()][n.Port]; ok {
-				if peer.Version != n.Version || peer.NodePubkey != n.Pubkey.String() {
-					err = a.storage.UpdatePeerVersionAndNodePubkey(peer.ID, n.Version, n.Pubkey.String())
+				if peer.NodePubkey != n.Pubkey.String() {
+					err = a.storage.UpdatePeerNodePubkey(peer.ID, n.Pubkey.String())
 					if err != nil {
-						return res, fmt.Errorf("UpdatePeerVersionAndNodePubkey: %s", err)
+						return res, fmt.Errorf("UpdatePeerNodePubkey: %s", err)
 					}
 				}
 

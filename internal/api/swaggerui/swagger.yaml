@@ -4,7 +4,7 @@ info:
   termsOfService: http://swagger.io/terms/
   version: 1.0.0
 servers:
-  - url: https://api.extrnode.tk
+  - url: /
 paths:
   /endpoints:
     get:
@@ -75,8 +75,8 @@ paths:
               schema:
                 type: string
                 example: |
-                  endpoint,version,ntw_as,network,country,is_rpc,is_validator
-                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false
+                  endpoint,version,ntw_as,network,country,is_rpc,is_validator,is_ssl
+                  127.0.0.1:80,1.14.10,201814,192.168.0.1/24,United States,true,false,false
             text/plain:
               schema:
                 type: string
@@ -128,6 +128,8 @@ components:
         is_rpc:
           type: boolean
         is_validator:
+          type: boolean
+        is_ssl:
           type: boolean
         asn_info:
           type: object
