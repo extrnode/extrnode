@@ -23,6 +23,11 @@ import (
 
 // TODO: Handle TLS proxy
 
+const (
+	NodeReqAttempts  = "X-NODE-REQ-ATTEMPTS"
+	NodeResponseTime = "X-NODE-RESPONSE-TIME"
+)
+
 type (
 	// ProxyConfig defines the config for Proxy middleware.
 	ProxyConfig struct {
@@ -285,8 +290,11 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 				metrics.IncNodeFailedRequestsCnt(config.ProxyName)
 			} else {
 				metrics.IncSuccessRequestsCnt(config.ProxyName)
-				metrics.ObserveNodeResponseTime(config.ProxyName, tgt.URL.String(), time.Since(now))
+				nodeResponseTime := time.Since(now)
+				metrics.ObserveNodeResponseTime(config.ProxyName, tgt.URL.String(), nodeResponseTime)
 				metrics.ObserveNodeAttemptsPerRequest(config.ProxyName, i+1)
+				res.Header().Set(NodeReqAttempts, fmt.Sprintf("%d", i+1))
+				res.Header().Set(NodeResponseTime, fmt.Sprintf("%dms", nodeResponseTime.Milliseconds()))
 			}
 
 			return

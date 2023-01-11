@@ -15,7 +15,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
@@ -46,14 +45,13 @@ const (
 	csvOutputFormat     = "csv"
 	haproxyOutputFormat = "haproxy"
 
-	endpointHeader    = "X-ENDPOINT"
-	signatureHeader   = "X-SIGNATURE"
-	elapsedTimeHeader = "X-ELAPSED-TIME"
-
 	cacheTTL                     = 5 * time.Minute
 	apiReadTimeout               = 5 * time.Second
 	apiWriteTimeout              = 30 * time.Second
 	customTransportDialerTimeout = 2 * time.Second
+	bodyLimit                    = 1000
+	reqBodyContextKey            = "reqBody"
+	resBodyContextKey            = "resBody"
 
 	apiPort = 8000
 )
@@ -139,7 +137,7 @@ func (a *api) initApiHandlers() error {
 	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
 
 	// chains
-	chainsGroup := a.router.Group("", middleware.Logger(), middlewares.RequestID())
+	chainsGroup := a.router.Group("", chainsMiddlewares()...)
 	err := a.solanaProxyHandler(chainsGroup)
 	if err != nil {
 		return fmt.Errorf("solanaProxyHandler: %s", err)

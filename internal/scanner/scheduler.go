@@ -41,12 +41,18 @@ func (s *scanner) scheduleNmap(ctx context.Context) {
 		log.Logger.Scanner.Debugf("scheduleScans: get %d uniq IP for nmap. Creating scanner tasks", len(peers))
 
 		for _, p := range peers {
-			s.nmapTaskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}
+			select {
+			case <-ctx.Done():
+				log.Logger.Scanner.Info("stopping nmap scheduler")
+				return
+
+			case s.nmapTaskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}:
+			}
 		}
 
 		select {
 		case <-ctx.Done():
-			log.Logger.Scanner.Info("stopping scheduler")
+			log.Logger.Scanner.Info("stopping nmap scheduler")
 			return
 
 		case <-time.After(nmapInterval):
@@ -65,12 +71,18 @@ func (s *scanner) scheduleScans(ctx context.Context) {
 		log.Logger.Scanner.Debugf("scheduleScans: get %d peers. Creating scanner tasks", len(peers))
 
 		for _, p := range peers {
-			s.taskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}
+			select {
+			case <-ctx.Done():
+				log.Logger.Scanner.Info("stopping scanner scheduler")
+				return
+
+			case s.taskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}:
+			}
 		}
 
 		select {
 		case <-ctx.Done():
-			log.Logger.Scanner.Info("stopping scheduler")
+			log.Logger.Scanner.Info("stopping scanner scheduler")
 			return
 
 		case <-time.After(scannerInterval):
