@@ -52,8 +52,12 @@ const (
 	bodyLimit                    = 1000
 	reqBodyContextKey            = "reqBody"
 	resBodyContextKey            = "resBody"
+	reqMethodContextKey          = "reqMethod"
+	rpcErrorContextKey           = "rpcError"
 
 	apiPort = 8000
+
+	serverShutdownTimeout = 10 * time.Second
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
@@ -169,7 +173,14 @@ func (a *api) Run() (err error) {
 }
 
 func (a *api) Stop() error {
+	ctx, cancel := context.WithTimeout(a.ctx, serverShutdownTimeout)
+	defer cancel()
+	err := a.router.Shutdown(ctx)
+	if err != nil {
+		log.Logger.Api.Errorf("router.Shutdown: %s", err)
+	}
 	a.ctxCancel()
+
 	return nil
 }
 
