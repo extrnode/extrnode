@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +33,7 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 	isRpc := true
 
 	// TODO: update endpoints
-	endpoints, err := a.storage.GetEndpoints(blockchainID, 1000, &isRpc, nil, nil, nil, nil)
+	endpoints, err := a.storage.GetEndpoints(blockchainID, maxLimit, &isRpc, nil, nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("GetEndpoints: %s", err)
 	}
@@ -61,8 +62,7 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 
 	chainsGroup.POST("/solana", nil,
 		middlewares.ProxyWithConfig(middlewares.ProxyConfig{
-			ProxyName: solanaBlockchain,
-			Balancer:  middlewares.NewRoundRobinBalancer(targets),
+			Balancer: middlewares.NewRoundRobinBalancer(targets),
 			Rewrite: map[string]string{
 				"/solana": "/", // empty string not working
 			},
@@ -80,7 +80,7 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 				ExpectContinueTimeout: 1 * time.Second,
 			},
 			ModifyResponse: func(res *http.Response) error {
-				now := time.Now()
+				//now := time.Now()
 
 				// Temporary not needed
 				//body, err := io.ReadAll(res.Body)
@@ -96,10 +96,7 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 				//}
 				//res.Header.Set(signatureHeader, signature.String())
 				res.Header.Set(nodeEndpointHeader, strings.TrimSuffix(res.Request.URL.String(), "/")) // temp hack with trailing slash
-
-				timeConsumed := time.Since(now)
-				//res.Header.Set(responseProcessingTimeHeader, timeConsumed.String())
-				metrics.ObserveProcessingTime(solanaBlockchain, timeConsumed)
+				//res.Header.Set(responseProcessingTimeHeader, fmt.Sprintf("%dms", time.Since(now).Milliseconds()))
 
 				return nil
 			},
@@ -110,6 +107,13 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 
 func chainsMiddlewares() []echo.MiddlewareFunc {
 	bodyDumpMiddleware := middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
+		var (
+			parsedReq RPCRequest
+			parsedRes RPCResponse
+		)
+		_ = json.Unmarshal(reqBody, &parsedReq) // ignore err
+		_ = json.Unmarshal(resBody, &parsedRes) // ignore err
+
 		reqBody, _ = json.Marshal(string(reqBody))
 		// ignore err
 		resBody, _ = json.Marshal(string(resBody))
@@ -131,6 +135,10 @@ func chainsMiddlewares() []echo.MiddlewareFunc {
 
 		c.Set(reqBodyContextKey, reqBody)
 		c.Set(resBodyContextKey, resBody)
+		c.Set(reqMethodContextKey, parsedReq.Method)
+		if parsedRes.Error.Code != 0 {
+			c.Set(rpcErrorContextKey, parsedRes.Error.Code)
+		}
 	})
 	loggerMiddleware := middleware.LoggerWithConfig(
 		middleware.LoggerConfig{
@@ -138,8 +146,27 @@ func chainsMiddlewares() []echo.MiddlewareFunc {
 				`"method":"${method}","user_agent":"${user_agent}","status":${status},` +
 				`"error":"${error}","latency":${latency},${custom}}` + "\n",
 			CustomTagFunc: func(c echo.Context, buf *bytes.Buffer) (int, error) {
-				return buf.WriteString(fmt.Sprintf(`"endpoint":"%s","attempts":"%s","node_response_time":"%s","request_body":"%s","response_body":"%s"`,
-					c.Response().Header().Get(nodeEndpointHeader), c.Response().Header().Get(middlewares.NodeReqAttempts), c.Response().Header().Get(middlewares.NodeResponseTime), c.Get(reqBodyContextKey), c.Get(resBodyContextKey)))
+				//metrics.ObserveProcessingTime(timeConsumed)
+				reqMethod, _ := c.Get(reqMethodContextKey).(string) // avoid panic
+				rpcErrorCode, _ := c.Get(rpcErrorContextKey).(int)  // avoid panic
+
+				server := c.Response().Header().Get(nodeEndpointHeader)
+				cl := c.Request().Header.Get(echo.HeaderContentLength)
+				if cl == "" {
+					cl = "0"
+				}
+				clFloat, _ := strconv.ParseFloat(cl, 64)
+				// ignore err
+
+				httpStatusString := fmt.Sprintf("%d", c.Response().Status)
+				metrics.AddBytesReadTotalCnt(httpStatusString, reqMethod, server, clFloat)
+				metrics.IncHttpResponsesTotalCnt(httpStatusString, reqMethod, server)
+				if rpcErrorCode != 0 {
+					metrics.IncRpcErrorCnt(fmt.Sprintf("%d", rpcErrorCode), httpStatusString, reqMethod, server)
+				}
+
+				return buf.WriteString(fmt.Sprintf(`"endpoint":"%s","attempts":"%s","node_response_time":"%s","req_method":"%s","rpcErrorCode":%d,"request_body":"%s","response_body":"%s"`,
+					server, c.Response().Header().Get(middlewares.NodeReqAttempts), c.Response().Header().Get(middlewares.NodeResponseTime), reqMethod, rpcErrorCode, c.Get(reqBodyContextKey), c.Get(resBodyContextKey)))
 			}},
 	)
 

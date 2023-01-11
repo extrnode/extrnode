@@ -64,8 +64,6 @@ type (
 
 		// ModifyResponse defines function to modify response from ProxyTarget.
 		ModifyResponse func(*http.Response) error
-
-		ProxyName string
 	}
 
 	// ProxyTarget defines the upstream target.
@@ -287,12 +285,11 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 
 			if err != nil {
 				// TODO: also use IncUserFailedRequestsCnt()
-				metrics.IncNodeFailedRequestsCnt(config.ProxyName)
+				//metrics.IncNodeFailedRequestsCnt()
 			} else {
-				metrics.IncSuccessRequestsCnt(config.ProxyName)
 				nodeResponseTime := time.Since(now)
-				metrics.ObserveNodeResponseTime(config.ProxyName, tgt.URL.String(), nodeResponseTime)
-				metrics.ObserveNodeAttemptsPerRequest(config.ProxyName, i+1)
+				metrics.ObserveNodeResponseTime(tgt.URL.String(), nodeResponseTime)
+				metrics.ObserveNodeAttemptsPerRequest(tgt.URL.String(), i+1)
 				res.Header().Set(NodeReqAttempts, fmt.Sprintf("%d", i+1))
 				res.Header().Set(NodeResponseTime, fmt.Sprintf("%dms", nodeResponseTime.Milliseconds()))
 			}
