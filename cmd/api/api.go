@@ -51,6 +51,12 @@ func main() {
 			log.Logger.Api.Fatalf("API: %s", err)
 		}
 	}()
+	// Metrics
+	go func() {
+		if err := app.RunMetrics(); err != nil {
+			log.Logger.Api.Fatalf("Metrics: %s", err)
+		}
+	}()
 
 	// Termination handler.
 	util.GracefulStop(app.WaitGroup(), waitTimeout, func() {

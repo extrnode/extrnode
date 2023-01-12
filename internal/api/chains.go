@@ -60,12 +60,14 @@ func (a *api) solanaProxyHandler(chainsGroup *echo.Group) error {
 		})
 	}
 
-	chainsGroup.POST("/solana", nil,
+	// TODO: use when multichain will be implemented
+	//chainsGroup.POST("/solana", nil,
+	chainsGroup.POST("/", nil,
 		middlewares.ProxyWithConfig(middlewares.ProxyConfig{
 			Balancer: middlewares.NewRoundRobinBalancer(targets),
-			Rewrite: map[string]string{
-				"/solana": "/", // empty string not working
-			},
+			//Rewrite: map[string]string{
+			//	"/solana": "/", // empty string not working
+			//},
 			ContextKey: "target", // default from lib
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,

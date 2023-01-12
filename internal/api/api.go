@@ -27,13 +27,14 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	certData  []byte
-	router    *echo.Echo
-	storage   storage.PgStorage
-	cache     *cache.Cache
-	waitGroup *sync.WaitGroup
-	ctx       context.Context
-	ctxCancel context.CancelFunc
+	certData      []byte
+	router        *echo.Echo
+	metricsServer *echo.Echo
+	storage       storage.PgStorage
+	cache         *cache.Cache
+	waitGroup     *sync.WaitGroup
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
 
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
@@ -55,7 +56,8 @@ const (
 	reqMethodContextKey          = "reqMethod"
 	rpcErrorContextKey           = "rpcError"
 
-	apiPort = 8000
+	apiPort     = 8000
+	metricsPort = 9099
 
 	serverShutdownTimeout = 10 * time.Second
 )
@@ -82,9 +84,10 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
-		router:  echo.New(),
-		storage: s,
-		cache:   cache.New(cacheTTL, cacheTTL),
+		router:        echo.New(),
+		metricsServer: echo.New(),
+		storage:       s,
+		cache:         cache.New(cacheTTL, cacheTTL),
 
 		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
@@ -108,12 +111,29 @@ func NewAPI(cfg config.Config) (*api, error) {
 	a.router.Server.ReadTimeout = apiReadTimeout
 	a.router.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
 
+	a.metricsServer.Server.ReadTimeout = apiReadTimeout
+	a.metricsServer.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
+
 	err = a.initApiHandlers()
 	if err != nil {
 		return nil, fmt.Errorf("initApiHandlers: %s", err)
 	}
 
 	return a, nil
+}
+
+func (a *api) initMetrics() {
+	a.metricsServer.HideBanner = true
+	a.metricsServer.Use(middleware.Recover())
+
+	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
+	prom.MetricsPath = "/"
+	// Scrape metrics from Main Server
+	a.metricsServer.Use(prom.HandlerFunc)
+	// Setup metrics endpoint at another server
+	prom.SetMetricsPath(a.metricsServer)
+
+	metrics.InitStartTime()
 }
 
 func (a *api) initApiHandlers() error {
@@ -124,8 +144,7 @@ func (a *api) initApiHandlers() error {
 	}))
 
 	// prometheus metrics
-	prometheus.NewPrometheus("extrnode", nil, metrics.MetricList()).Use(a.router)
-	metrics.InitStartTime()
+	a.initMetrics()
 
 	// general rate limit
 	a.router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20))) // req per second
@@ -151,14 +170,6 @@ func (a *api) initApiHandlers() error {
 }
 
 func (a *api) Run() (err error) {
-	go func() {
-		<-a.ctx.Done()
-		err := a.router.Shutdown(context.Background())
-		if err != nil {
-			log.Logger.Api.Errorf("api shutdown error: %s", err)
-		}
-	}()
-
 	addr := fmt.Sprintf(":%d", apiPort)
 	if len(a.certData) != 0 {
 		err = a.router.StartTLS(addr, a.certData, a.certData)
@@ -172,9 +183,25 @@ func (a *api) Run() (err error) {
 	return nil
 }
 
+func (a *api) RunMetrics() (err error) {
+	addr := fmt.Sprintf(":%d", metricsPort)
+	if len(a.certData) != 0 {
+		err = a.metricsServer.StartTLS(addr, a.certData, a.certData)
+	} else {
+		err = a.metricsServer.Start(addr)
+	}
+	if err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
+}
+
 func (a *api) Stop() error {
 	ctx, cancel := context.WithTimeout(a.ctx, serverShutdownTimeout)
 	defer cancel()
+
+	go a.metricsServer.Shutdown(ctx)
 	err := a.router.Shutdown(ctx)
 	if err != nil {
 		log.Logger.Api.Errorf("router.Shutdown: %s", err)
