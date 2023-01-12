@@ -127,7 +127,6 @@ func (a *api) initMetrics() {
 	a.metricsServer.Use(middleware.Recover())
 
 	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
-	prom.MetricsPath = "/"
 	// Scrape metrics from Main Server
 	a.metricsServer.Use(prom.HandlerFunc)
 	// Setup metrics endpoint at another server
@@ -184,12 +183,7 @@ func (a *api) Run() (err error) {
 }
 
 func (a *api) RunMetrics() (err error) {
-	addr := fmt.Sprintf(":%d", metricsPort)
-	if len(a.certData) != 0 {
-		err = a.metricsServer.StartTLS(addr, a.certData, a.certData)
-	} else {
-		err = a.metricsServer.Start(addr)
-	}
+	err = a.metricsServer.Start(fmt.Sprintf(":%d", metricsPort))
 	if err != http.ErrServerClosed {
 		return err
 	}
