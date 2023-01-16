@@ -15,7 +15,7 @@ import (
 
 var (
 	defaultMaxIdleConnsPerHost = 1
-	defaultTimeout             = 5 * time.Second
+	defaultTimeout             = 60 * time.Second
 	defaultKeepAlive           = 100 * time.Second
 )
 
