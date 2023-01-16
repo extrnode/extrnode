@@ -207,8 +207,6 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 				if rpcErr, ok := err.(*jsonrpc.RPCError); ok && rpcErr.Code == sendTxSanitizeErr {
 					out = true
 				}
-			} else {
-				out = true
 			}
 		}
 	default:
