@@ -66,27 +66,23 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 
 	var isAlive bool
 	isRpc := true
-	for m := range methods {
-		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(m), rpcClient, a.ctx)
-		if err != nil {
-			continue
-		}
-
-		if responseValid {
-			isAlive = true
-			err = a.storage.UpsertRpcPeerMethod(peer.ID, methods[m], responseTime)
-			if err != nil {
-				return fmt.Errorf("CreateRpcPeerMethod: %s", err)
-			}
-		} else {
+	for mName, mID := range methods {
+		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(mName), rpcClient, a.ctx)
+		if err != nil || !responseValid { // responseValid always == false when err != nil
 			isRpc = false
-			methodID := methods[m]
-			err = a.storage.DeleteRpcPeerMethod(peer.ID, &methodID)
+			err = a.storage.DeleteRpcPeerMethod(peer.ID, &mID)
 			if err != nil {
 				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
 			}
+		} else {
+			isAlive = true
+			err = a.storage.UpsertRpcPeerMethod(peer.ID, mID, responseTime)
+			if err != nil {
+				return fmt.Errorf("UpsertRpcPeerMethod: %s", err)
+			}
 		}
-		err = a.storage.CreateScannerMethod(peer.ID, methods[m], now, 0, responseTime, statusCode, responseValid)
+
+		err = a.storage.CreateScannerMethod(peer.ID, mID, now, 0, responseTime, statusCode, responseValid)
 		if err != nil {
 			return fmt.Errorf("CreateScannerMethod: %s", err)
 		}
