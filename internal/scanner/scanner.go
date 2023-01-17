@@ -67,7 +67,7 @@ func (s *scanner) RunNmap() error {
 	s.runWithWaitGroup(s.ctx, s.scheduleNmap)
 
 	for i := 0; i < s.cfg.Scanner.ThreadsNum; i++ {
-		s.runWithWaitGroup(s.ctx, s.runScanner)
+		s.runWithWaitGroup(s.ctx, s.runNmap)
 	}
 
 	return nil
@@ -106,6 +106,17 @@ func (s *scanner) runScanner(ctx context.Context) {
 			if err != nil {
 				log.Logger.Scanner.Errorf("Scan (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
+		}
+	}
+}
+
+func (s *scanner) runNmap(ctx context.Context) {
+	var err error
+	for {
+		select {
+		case <-ctx.Done():
+			log.Logger.Scanner.Info("stopping nmap")
+			return
 
 		case task := <-s.nmapTaskQueue:
 			err = nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
