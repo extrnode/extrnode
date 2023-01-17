@@ -20,6 +20,7 @@ type SolanaAdapter struct {
 	storage                storage.PgStorage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
+	signatureForAddress    *rpc.TransactionSignature
 	baseRpcClient          *rpc.Client
 }
 
@@ -90,6 +91,12 @@ func (a *SolanaAdapter) BeforeRun() error {
 		return fmt.Errorf("GetVoteAccounts: %s", err)
 	}
 
+	res, err := a.baseRpcClient.GetSignaturesForAddress(a.ctx, testKey3)
+	if len(res) <= 0 || err != nil {
+		return fmt.Errorf("GetSignaturesForAddress: %s", err)
+	}
+
+	a.signatureForAddress = res[0]
 	a.voteAccountsNodePubkey = make(map[string]struct{}, len(voteAccounts.Current))
 	for _, va := range voteAccounts.Current {
 		a.voteAccountsNodePubkey[va.NodePubkey.String()] = struct{}{}
