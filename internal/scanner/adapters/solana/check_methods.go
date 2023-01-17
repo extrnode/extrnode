@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gagliardetto/solana-go"
@@ -53,6 +54,7 @@ var (
 )
 
 func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Context) (out bool, responseTime time.Duration, code int, err error) {
+	code = http.StatusOK
 	start := time.Now()
 
 	switch method {
@@ -73,10 +75,10 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 		}
 	case getBlockTime:
 		var block uint64
-		block, err = rpcClient.GetFirstAvailableBlock(ctx)
+		block, err = rpcClient.GetSlot(ctx, rpc.CommitmentProcessed)
 		if err == nil {
 			var resp *solana.UnixTimeSeconds
-			if resp, err = rpcClient.GetBlockTime(ctx, block); err == nil && resp != nil && resp.Time().Unix() > 0 {
+			if resp, err = rpcClient.GetBlockTime(ctx, block-100); err == nil && resp != nil && resp.Time().Unix() > 0 {
 				out = true
 			}
 		}
@@ -215,14 +217,26 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 
 	responseTime = time.Since(start)
 	if err != nil {
-		if _, ok := err.(*jsonrpc.RPCError); ok {
+		// make sure 'out' is set to false in err case
+		out = false
+
+		if typedErr, ok := err.(*jsonrpc.RPCError); ok {
+			// rm popular errors
+			if typedErr.Code == -32601 || typedErr.Code == sendTxSanitizeErr || typedErr.Code == -32011 ||
+				method == getInflationReward && (typedErr.Code == -32004 || typedErr.Code == -32001) ||
+				method == getTokenAccountsByOwner && typedErr.Code == -32010 || method == getProgramAccounts && typedErr.Code == -32010 ||
+				method == getBlockTime && typedErr.Code == -32004 {
+				err = nil
+			}
 			code = http.StatusInternalServerError
 		} else if parseErr, ok := err.(*jsonrpc.HTTPError); ok {
 			code = parseErr.Code
-		} else {
-			return out, responseTime, code, err
+		} else if strings.Contains(err.Error(), "Client.Timeout") || strings.Contains(err.Error(), "connection refused") ||
+			strings.Contains(err.Error(), "context deadline exceeded") || strings.Contains(err.Error(), "use of closed network connection") {
+			code = http.StatusRequestTimeout
+			err = nil
 		}
 	}
 
-	return out, responseTime, http.StatusOK, nil
+	return out, responseTime, code, err
 }

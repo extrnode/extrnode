@@ -6,6 +6,7 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 
+	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 )
 
@@ -69,6 +70,9 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	for mName, mID := range methods {
 		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(mName), rpcClient, a.ctx)
 		if err != nil || !responseValid { // responseValid always == false when err != nil
+			if err != nil {
+				log.Logger.Scanner.Errorf("checkRpcMethod %s %s: %s", mName, fmt.Sprintf("%s:%d", peer.Address, peer.Port), err)
+			}
 			isRpc = false
 			err = a.storage.DeleteRpcPeerMethod(peer.ID, &mID)
 			if err != nil {
