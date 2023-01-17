@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 
 	"extrnode-be/internal/pkg/storage"
@@ -13,6 +14,7 @@ import (
 const (
 	solanaBlockchain = "solana"
 	httpPort         = 80
+	slotShift        = 2000
 )
 
 type SolanaAdapter struct {
@@ -20,7 +22,7 @@ type SolanaAdapter struct {
 	storage                storage.PgStorage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
-	signatureForAddress    *rpc.TransactionSignature
+	signatureForAddress    solana.Signature
 	baseRpcClient          *rpc.Client
 }
 
@@ -95,8 +97,28 @@ func (a *SolanaAdapter) BeforeRun() error {
 	if len(res) <= 0 || err != nil {
 		return fmt.Errorf("GetSignaturesForAddress: %s", err)
 	}
+	slot, err := a.baseRpcClient.GetSlot(a.ctx, rpc.CommitmentFinalized)
+	if err != nil {
+		return fmt.Errorf("GetSlot: %s", err)
+	}
 
-	a.signatureForAddress = res[0]
+	slot = slot - slotShift
+	var i uint64 = 0
+	var block *rpc.GetBlockResult
+	ops := rpc.GetBlockOpts{
+		MaxSupportedTransactionVersion: &i,
+		TransactionDetails:             rpc.TransactionDetailsSignatures,
+	}
+	for {
+		block, err = a.baseRpcClient.GetBlockWithOpts(a.ctx, slot, &ops)
+		if err == nil && block != nil && len(block.Signatures) > 0 {
+			break
+		} else {
+			slot--
+		}
+	}
+
+	a.signatureForAddress = block.Signatures[0]
 	a.voteAccountsNodePubkey = make(map[string]struct{}, len(voteAccounts.Current))
 	for _, va := range voteAccounts.Current {
 		a.voteAccountsNodePubkey[va.NodePubkey.String()] = struct{}{}

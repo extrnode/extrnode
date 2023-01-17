@@ -128,7 +128,7 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		}
 	case getSignatureStatuses:
 		var resp *rpc.GetSignatureStatusesResult
-		if resp, err = rpcClient.GetSignatureStatuses(a.ctx, true, a.signatureForAddress.Signature); err == nil && len(resp.Value) > 0 && resp.Value[0] != nil {
+		if resp, err = rpcClient.GetSignatureStatuses(a.ctx, true, a.signatureForAddress); err == nil && len(resp.Value) > 0 && resp.Value[0] != nil {
 			out = true
 		}
 	case getSlot:
@@ -156,7 +156,11 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		}
 	case getTransaction:
 		var resp *rpc.GetTransactionResult
-		if resp, err = rpcClient.GetTransaction(a.ctx, a.signatureForAddress.Signature, nil); err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
+		var i uint64 = 0
+		ops := rpc.GetTransactionOpts{
+			MaxSupportedTransactionVersion: &i,
+		}
+		if resp, err = rpcClient.GetTransaction(a.ctx, a.signatureForAddress, &ops); err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
 			out = true
 		}
 	case getTransactionCount:
