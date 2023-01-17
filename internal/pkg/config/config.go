@@ -20,6 +20,7 @@ type ScannerConfig struct {
 }
 
 type ApiConfig struct {
+	Port     uint64 `required:"true" split_words:"true"`
 	CertFile string `required:"false" split_words:"true"`
 }
 

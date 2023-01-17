@@ -27,6 +27,7 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
+	apiPort       uint64
 	certData      []byte
 	router        *echo.Echo
 	metricsServer *echo.Echo
@@ -56,7 +57,6 @@ const (
 	reqMethodContextKey          = "reqMethod"
 	rpcErrorContextKey           = "rpcError"
 
-	apiPort     = 8000
 	metricsPort = 9099
 
 	serverShutdownTimeout = 10 * time.Second
@@ -84,6 +84,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
+		apiPort:       cfg.API.Port,
 		router:        echo.New(),
 		metricsServer: echo.New(),
 		storage:       s,
@@ -169,7 +170,7 @@ func (a *api) initApiHandlers() error {
 }
 
 func (a *api) Run() (err error) {
-	addr := fmt.Sprintf(":%d", apiPort)
+	addr := fmt.Sprintf(":%d", a.apiPort)
 	if len(a.certData) != 0 {
 		err = a.router.StartTLS(addr, a.certData, a.certData)
 	} else {
