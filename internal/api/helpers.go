@@ -12,6 +12,21 @@ const (
 	statsCacheKey = "stats"
 )
 
+type (
+	RPCRequest struct {
+		Method string `json:"method"`
+		// unnecessary fields removed
+	}
+
+	RPCResponse struct {
+		Error RPCError `json:"error,omitempty"`
+	}
+	RPCError struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+)
+
 func (a *api) getStats() (res models.Stat, err error) {
 	cacheValue, ok := a.cache.Get(statsCacheKey)
 	if ok {

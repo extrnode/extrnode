@@ -2,3 +2,4 @@
 .history
 /indexer
 /api
+*.pem

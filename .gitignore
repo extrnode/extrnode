@@ -29,3 +29,4 @@ distribution.yml
 .secrets
 mock_*
 .env
+*.pem

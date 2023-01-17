@@ -23,6 +23,11 @@ import (
 
 // TODO: Handle TLS proxy
 
+const (
+	NodeReqAttempts  = "X-NODE-REQ-ATTEMPTS"
+	NodeResponseTime = "X-NODE-RESPONSE-TIME"
+)
+
 type (
 	// ProxyConfig defines the config for Proxy middleware.
 	ProxyConfig struct {
@@ -59,8 +64,6 @@ type (
 
 		// ModifyResponse defines function to modify response from ProxyTarget.
 		ModifyResponse func(*http.Response) error
-
-		ProxyName string
 	}
 
 	// ProxyTarget defines the upstream target.
@@ -258,14 +261,14 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 				c.Set(config.ContextKey, tgt)
 
 				now = time.Now()
-				// Proxy
-				switch {
-				case c.IsWebSocket():
-					proxyRaw(tgt, c).ServeHTTP(res, req)
-				case req.Header.Get(echo.HeaderAccept) == "text/event-stream":
-				default:
-					proxyHTTP(tgt, c, config).ServeHTTP(res, req)
-				}
+				//// Proxy
+				//switch {
+				//case c.IsWebSocket():  // now its not need
+				//	proxyRaw(tgt, c).ServeHTTP(res, req)
+				//case req.Header.Get(echo.HeaderAccept) == "text/event-stream":
+				//default:
+				proxyHTTP(tgt, c, config).ServeHTTP(res, req)
+				//}
 
 				if e, ok := c.Get(contextErrorField).(error); ok {
 					c.Set(contextErrorField, nil) // unset err for next iteration
@@ -282,11 +285,13 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 
 			if err != nil {
 				// TODO: also use IncUserFailedRequestsCnt()
-				metrics.IncNodeFailedRequestsCnt(config.ProxyName)
+				//metrics.IncNodeFailedRequestsCnt()
 			} else {
-				metrics.IncSuccessRequestsCnt(config.ProxyName)
-				metrics.ObserveNodeResponseTime(config.ProxyName, tgt.URL.String(), time.Since(now))
-				metrics.ObserveNodeAttemptsPerRequest(config.ProxyName, i+1)
+				nodeResponseTime := time.Since(now)
+				metrics.ObserveNodeResponseTime(tgt.URL.String(), nodeResponseTime)
+				metrics.ObserveNodeAttemptsPerRequest(tgt.URL.String(), i+1)
+				res.Header().Set(NodeReqAttempts, fmt.Sprintf("%d", i+1))
+				res.Header().Set(NodeResponseTime, fmt.Sprintf("%dms", nodeResponseTime.Milliseconds()))
 			}
 
 			return

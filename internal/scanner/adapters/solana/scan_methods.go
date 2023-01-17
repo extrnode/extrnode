@@ -6,6 +6,7 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 
+	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 )
 
@@ -66,27 +67,26 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 
 	var isAlive bool
 	isRpc := true
-	for m := range methods {
-		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(m), rpcClient, a.ctx)
-		if err != nil {
-			continue
-		}
-
-		if responseValid {
-			isAlive = true
-			err = a.storage.UpsertRpcPeerMethod(peer.ID, methods[m], responseTime)
+	for mName, mID := range methods {
+		responseValid, responseTime, statusCode, err := checkRpcMethod(TopRpcMethod(mName), rpcClient, a.ctx)
+		if err != nil || !responseValid { // responseValid always == false when err != nil
 			if err != nil {
-				return fmt.Errorf("CreateRpcPeerMethod: %s", err)
+				log.Logger.Scanner.Errorf("checkRpcMethod %s %s: %s", mName, fmt.Sprintf("%s:%d", peer.Address, peer.Port), err)
 			}
-		} else {
 			isRpc = false
-			methodID := methods[m]
-			err = a.storage.DeleteRpcPeerMethod(peer.ID, &methodID)
+			err = a.storage.DeleteRpcPeerMethod(peer.ID, &mID)
 			if err != nil {
 				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
 			}
+		} else {
+			isAlive = true
+			err = a.storage.UpsertRpcPeerMethod(peer.ID, mID, responseTime)
+			if err != nil {
+				return fmt.Errorf("UpsertRpcPeerMethod: %s", err)
+			}
 		}
-		err = a.storage.CreateScannerMethod(peer.ID, methods[m], now, 0, responseTime, statusCode, responseValid)
+
+		err = a.storage.CreateScannerMethod(peer.ID, mID, now, 0, responseTime, statusCode, responseValid)
 		if err != nil {
 			return fmt.Errorf("CreateScannerMethod: %s", err)
 		}
