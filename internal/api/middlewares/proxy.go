@@ -261,14 +261,14 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 				c.Set(config.ContextKey, tgt)
 
 				now = time.Now()
-				// Proxy
-				switch {
-				case c.IsWebSocket():
-					proxyRaw(tgt, c).ServeHTTP(res, req)
-				case req.Header.Get(echo.HeaderAccept) == "text/event-stream":
-				default:
-					proxyHTTP(tgt, c, config).ServeHTTP(res, req)
-				}
+				//// Proxy
+				//switch {
+				//case c.IsWebSocket():  // now its not need
+				//	proxyRaw(tgt, c).ServeHTTP(res, req)
+				//case req.Header.Get(echo.HeaderAccept) == "text/event-stream":
+				//default:
+				proxyHTTP(tgt, c, config).ServeHTTP(res, req)
+				//}
 
 				if e, ok := c.Get(contextErrorField).(error); ok {
 					c.Set(contextErrorField, nil) // unset err for next iteration
