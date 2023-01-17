@@ -208,6 +208,7 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 			if err != nil {
 				if rpcErr, ok := err.(*jsonrpc.RPCError); ok && rpcErr.Code == sendTxSanitizeErr {
 					out = true
+					err = nil // reset err for err check below switch
 				}
 			}
 		}
@@ -222,7 +223,7 @@ func checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client, ctx context.Cont
 
 		if typedErr, ok := err.(*jsonrpc.RPCError); ok {
 			// rm popular errors
-			if typedErr.Code == -32601 || typedErr.Code == sendTxSanitizeErr || typedErr.Code == -32011 ||
+			if typedErr.Code == -32601 || typedErr.Code == -32011 ||
 				method == getInflationReward && (typedErr.Code == -32004 || typedErr.Code == -32001) ||
 				method == getTokenAccountsByOwner && typedErr.Code == -32010 || method == getProgramAccounts && typedErr.Code == -32010 ||
 				method == getBlockTime && typedErr.Code == -32004 {
