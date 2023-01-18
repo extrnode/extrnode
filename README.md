@@ -49,6 +49,8 @@ SCANNER_THREADS_NUM=20
 # api 
 # servert port
 API_PORT=8000
+# port for prometheus metrics (optional; 0 or empty value - disable metrics)
+API_METRICS_PORT=9099
 # path to certs for https (optional)
 API_CERT_FILE=certs/api.pem
 

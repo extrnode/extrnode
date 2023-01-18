@@ -20,8 +20,9 @@ type ScannerConfig struct {
 }
 
 type ApiConfig struct {
-	Port     uint64 `required:"true" split_words:"true"`
-	CertFile string `required:"false" split_words:"true"`
+	Port        uint64 `required:"true" split_words:"true"`
+	MetricsPort uint64 `required:"false" split_words:"true"`
+	CertFile    string `required:"false" split_words:"true"`
 }
 
 type PostgresConfig struct {
