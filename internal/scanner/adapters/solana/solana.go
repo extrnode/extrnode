@@ -102,20 +102,17 @@ func (a *SolanaAdapter) BeforeRun() error {
 		return fmt.Errorf("GetSlot: %s", err)
 	}
 
+	var (
+		i     uint64 = 0
+		block *rpc.GetBlockResult
+	)
 	slot = slot - slotShift
-	var i uint64 = 0
-	var block *rpc.GetBlockResult
 	ops := rpc.GetBlockOpts{
 		MaxSupportedTransactionVersion: &i,
 		TransactionDetails:             rpc.TransactionDetailsSignatures,
 	}
-	for {
-		block, err = a.baseRpcClient.GetBlockWithOpts(a.ctx, slot, &ops)
-		if err == nil && block != nil && len(block.Signatures) > 0 {
-			break
-		} else {
-			slot--
-		}
+	if block, err = a.baseRpcClient.GetBlockWithOpts(a.ctx, slot, &ops); err != nil || block == nil || len(block.Signatures) <= 0 {
+		return fmt.Errorf("GetBlockWithOpts: %s", err)
 	}
 
 	a.signatureForAddress = block.Signatures[0]
