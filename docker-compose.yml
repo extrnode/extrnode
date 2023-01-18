@@ -19,7 +19,7 @@ services:
     tty: true
     ports:
       - "${API_PORT}:${API_PORT}"
-      - "9099:9099"
+      - "${API_METRICS_PORT}:${API_METRICS_PORT}"
     depends_on:
       - postgres
     env_file:
