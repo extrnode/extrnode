@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,11 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
 	"extrnode-be/internal/api/middlewares"
+	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
 )
 
@@ -116,61 +117,73 @@ func chainsMiddlewares() []echo.MiddlewareFunc {
 		_ = json.Unmarshal(reqBody, &parsedReq) // ignore err
 		_ = json.Unmarshal(resBody, &parsedRes) // ignore err
 
-		reqBody, _ = json.Marshal(string(reqBody))
-		// ignore err
-		resBody, _ = json.Marshal(string(resBody))
-		// ignore err
-
-		if len(reqBody) > 1 {
-			reqBody = []byte(strings.Trim(string(reqBody), `"`)) // remove extra trailing quotes
-		}
-		if len(resBody) > 1 {
-			resBody = []byte(strings.Trim(string(resBody), `"`)) // remove extra trailing quotes
-		}
-
 		if len(reqBody) > bodyLimit {
-			reqBody = []byte(strings.Trim(string(reqBody[:bodyLimit]), `\`))
+			reqBody = reqBody[:bodyLimit]
 		}
 		if len(resBody) > bodyLimit {
-			resBody = []byte(strings.Trim(string(resBody[:bodyLimit]), `\`))
+			resBody = resBody[:bodyLimit]
 		}
+
+		reqBody = []byte(strings.Map(func(r rune) rune {
+			if unicode.IsSpace(r) {
+				return -1
+			}
+			return r
+		}, string(reqBody)))
+		resBody = []byte(strings.TrimSpace(string(resBody)))
 
 		c.Set(reqBodyContextKey, reqBody)
 		c.Set(resBodyContextKey, resBody)
-		c.Set(reqMethodContextKey, parsedReq.Method)
+		c.Set(reqRpcMethodContextKey, parsedReq.Method)
 		if parsedRes.Error.Code != 0 {
 			c.Set(rpcErrorContextKey, parsedRes.Error.Code)
 		}
 	})
-	loggerMiddleware := middleware.LoggerWithConfig(
-		middleware.LoggerConfig{
-			Format: `{"time":"${time_rfc3339}","id":"${id}","remote_ip":"${remote_ip}",` +
-				`"method":"${method}","user_agent":"${user_agent}","status":${status},` +
-				`"error":"${error}","latency":${latency},${custom}}` + "\n",
-			CustomTagFunc: func(c echo.Context, buf *bytes.Buffer) (int, error) {
-				//metrics.ObserveProcessingTime(timeConsumed)
-				reqMethod, _ := c.Get(reqMethodContextKey).(string) // avoid panic
-				rpcErrorCode, _ := c.Get(rpcErrorContextKey).(int)  // avoid panic
 
-				server := c.Response().Header().Get(nodeEndpointHeader)
-				cl := c.Request().Header.Get(echo.HeaderContentLength)
-				if cl == "" {
-					cl = "0"
-				}
-				clFloat, _ := strconv.ParseFloat(cl, 64)
-				// ignore err
+	loggerMiddleware := middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus:    true,
+		LogMethod:    true,
+		LogRequestID: true,
+		LogLatency:   true,
+		LogError:     true,
+		LogRemoteIP:  true,
+		LogUserAgent: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			rpcMethod, _ := c.Get(reqRpcMethodContextKey).(string)
+			rpcErrorCode, _ := c.Get(rpcErrorContextKey).(int)
 
-				httpStatusString := fmt.Sprintf("%d", c.Response().Status)
-				metrics.AddBytesReadTotalCnt(httpStatusString, reqMethod, server, clFloat)
-				metrics.IncHttpResponsesTotalCnt(httpStatusString, reqMethod, server)
-				if rpcErrorCode != 0 {
-					metrics.IncRpcErrorCnt(fmt.Sprintf("%d", rpcErrorCode), httpStatusString, reqMethod, server)
-				}
+			endpoint := c.Response().Header().Get(nodeEndpointHeader)
+			cl := c.Request().Header.Get(echo.HeaderContentLength)
+			if cl == "" {
+				cl = "0"
+			}
+			clFloat, _ := strconv.ParseFloat(cl, 64)
+			// ignore err
 
-				return buf.WriteString(fmt.Sprintf(`"endpoint":"%s","attempts":"%s","node_response_time":"%s","req_method":"%s","rpcErrorCode":%d,"request_body":"%s","response_body":"%s"`,
-					server, c.Response().Header().Get(middlewares.NodeReqAttempts), c.Response().Header().Get(middlewares.NodeResponseTime), reqMethod, rpcErrorCode, c.Get(reqBodyContextKey), c.Get(resBodyContextKey)))
-			}},
-	)
+			httpStatusString := fmt.Sprintf("%d", c.Response().Status)
+			metrics.AddBytesReadTotalCnt(httpStatusString, rpcMethod, endpoint, clFloat)
+			metrics.IncHttpResponsesTotalCnt(httpStatusString, rpcMethod, endpoint)
+			if rpcErrorCode != 0 {
+				metrics.IncRpcErrorCnt(fmt.Sprintf("%d", rpcErrorCode), httpStatusString, rpcMethod, endpoint)
+			}
+			attempts := c.Response().Header().Get(middlewares.NodeReqAttempts)
+			nodeResponseTime := c.Response().Header().Get(middlewares.NodeResponseTime)
+
+			if v.Error != nil || rpcErrorCode != 0 {
+				log.Logger.Proxy.Errorf("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %s, attempts: %s, node_response_time: %s, "+
+					"rpc_error_code: %d, error: %s, request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s",
+					v.Status, v.Method, v.RequestID, v.Latency.Milliseconds(), endpoint, rpcMethod, attempts, nodeResponseTime,
+					rpcErrorCode, v.Error, c.Get(reqBodyContextKey), c.Get(resBodyContextKey), v.RemoteIP, v.UserAgent)
+			} else {
+				log.Logger.Proxy.Infof("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %s, attempts: %s, node_response_time: %s, "+
+					"request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s",
+					v.Status, v.Method, v.RequestID, v.Latency.Milliseconds(), endpoint, rpcMethod, attempts, nodeResponseTime,
+					c.Get(reqBodyContextKey), c.Get(resBodyContextKey), v.RemoteIP, v.UserAgent)
+			}
+
+			return nil
+		},
+	})
 
 	return []echo.MiddlewareFunc{middlewares.RequestID(), loggerMiddleware, bodyDumpMiddleware}
 }

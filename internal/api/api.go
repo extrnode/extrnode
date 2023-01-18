@@ -55,7 +55,7 @@ const (
 	bodyLimit                    = 1000
 	reqBodyContextKey            = "reqBody"
 	resBodyContextKey            = "resBody"
-	reqMethodContextKey          = "reqMethod"
+	reqRpcMethodContextKey       = "reqMethod"
 	rpcErrorContextKey           = "rpcError"
 
 	serverShutdownTimeout = 10 * time.Second
