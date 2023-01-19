@@ -21,7 +21,7 @@ type flags struct {
 
 // Setup flags
 func getFlags() (f flags) {
-	flag.StringVar(&f.logLevel, "log", "debug", "log level [debug|info|warn|error|crit]")
+	flag.StringVar(&f.logLevel, "log", "info", "log level [debug|info|warn|error|crit]")
 	flag.StringVar(&f.envFile, "envFile", "", "path to .env file")
 	flag.Parse()
 

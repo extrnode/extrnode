@@ -11,6 +11,8 @@ services:
     env_file:
       - .env
     entrypoint: "scanner"
+    command:
+      - -log=debug
 
   extrnode-api:
     container_name: extrnode-api
@@ -25,6 +27,8 @@ services:
     env_file:
       - .env
     entrypoint: "api"
+    command:
+      - -log=debug
 
   postgres:
     container_name: extrnode-postgres

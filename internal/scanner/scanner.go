@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
@@ -91,6 +92,8 @@ func (s *scanner) runScanner(ctx context.Context) {
 			return
 
 		case task := <-s.taskQueue:
+			log.Logger.Scanner.Debugf("Scanning peer %s", task.peer.Address)
+
 			adapter, ok := s.getAdapter(task)
 			if !ok {
 				continue
@@ -112,6 +115,7 @@ func (s *scanner) runScanner(ctx context.Context) {
 
 func (s *scanner) runNmap(ctx context.Context) {
 	var err error
+	var isIdle bool
 	for {
 		select {
 		case <-ctx.Done():
@@ -119,9 +123,16 @@ func (s *scanner) runNmap(ctx context.Context) {
 			return
 
 		case task := <-s.nmapTaskQueue:
+			isIdle = false
 			err = nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("NmapCheck (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
+			}
+
+		case <-time.After(time.Minute):
+			if !isIdle {
+				log.Logger.Scanner.Debug("No more tasks")
+				isIdle = true
 			}
 		}
 	}

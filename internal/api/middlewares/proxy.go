@@ -3,6 +3,7 @@ package middlewares
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -222,6 +223,10 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			if config.Balancer.GetTargetsLen() == 0 {
+				return errors.New("no nodes available")
+			}
+
 			req := c.Request()
 			res := c.Response()
 
@@ -249,30 +254,22 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 			clonedContentLength := req.ContentLength
 
 			var (
-				i   int
-				now time.Time
-				tgt *ProxyTarget
+				i        int
+				now      time.Time
+				tgt      *ProxyTarget
+				proxyReq *http.Request
+				proxyRes *echo.Response
+				writer   *fakeWriter
 			)
-			for ; i < config.Balancer.GetTargetsLen(); i++ {
-				req.Body = io.NopCloser(bytes.NewBuffer(clonedBody)) // refill body
-				req.ContentLength = clonedContentLength
 
+			for ; i < config.Balancer.GetTargetsLen(); i++ {
 				tgt = config.Balancer.Next(c)
-				c.Set(config.ContextKey, tgt)
+				proxyReq, proxyRes, writer = prepareProxyReqRes(req, res, clonedBody, clonedContentLength)
 
 				now = time.Now()
-				//// Proxy
-				//switch {
-				//case c.IsWebSocket():  // now its not need
-				//	proxyRaw(tgt, c).ServeHTTP(res, req)
-				//case req.Header.Get(echo.HeaderAccept) == "text/event-stream":
-				//default:
-				proxyHTTP(tgt, c, config).ServeHTTP(res, req)
-				//}
-
-				if e, ok := c.Get(contextErrorField).(error); ok {
-					c.Set(contextErrorField, nil) // unset err for next iteration
-					err = e
+				httpError := newReverseProxy(tgt, config, proxyReq, proxyRes, writer)
+				if httpError != nil {
+					err = errors.New(httpError.Error())
 					log.Errorf("solana proxy (%s): %s", tgt.URL.String(), err)
 					tgt.DecreaseRate()
 					continue
@@ -283,15 +280,28 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 				break // find a working one
 			}
 
+			if writer == nil {
+				return errors.New("writer is nil")
+			}
+
+			// Write response
+			res.Writer.WriteHeader(writer.statusCode)
+			res.Writer.Write(writer.buf.Bytes())
+			// Flush headers
+			writer.FlushHeaders(res.Writer)
+
+			c.Set(config.ContextKey, tgt)
+
+			nodeResponseTime := time.Since(now)
+
+			metrics.ObserveNodeAttemptsPerRequest(tgt.URL.String(), i+1)
+			metrics.ObserveNodeResponseTime(tgt.URL.String(), nodeResponseTime)
+
+			res.Header().Set(NodeReqAttempts, fmt.Sprintf("%d", i+1))
+			res.Header().Set(NodeResponseTime, fmt.Sprintf("%dms", nodeResponseTime.Milliseconds()))
+
 			if err != nil {
-				// TODO: also use IncUserFailedRequestsCnt()
-				//metrics.IncNodeFailedRequestsCnt()
-			} else {
-				nodeResponseTime := time.Since(now)
-				metrics.ObserveNodeResponseTime(tgt.URL.String(), nodeResponseTime)
-				metrics.ObserveNodeAttemptsPerRequest(tgt.URL.String(), i+1)
-				res.Header().Set(NodeReqAttempts, fmt.Sprintf("%d", i+1))
-				res.Header().Set(NodeResponseTime, fmt.Sprintf("%dms", nodeResponseTime.Milliseconds()))
+				c.Set(contextErrorField, err.Error())
 			}
 
 			return
@@ -306,9 +316,11 @@ func ProxyWithConfig(config ProxyConfig) echo.MiddlewareFunc {
 // 499 too instead of the more problematic 5xx, which does not allow to detect this situation
 const StatusCodeContextCanceled = 499
 
-func proxyHTTP(tgt *ProxyTarget, c echo.Context, config ProxyConfig) http.Handler {
+func newReverseProxy(tgt *ProxyTarget, config ProxyConfig, req *http.Request, res *echo.Response, writer http.ResponseWriter) *echo.HTTPError {
+	var httpError *echo.HTTPError
+
 	proxy := httputil.NewSingleHostReverseProxy(tgt.URL)
-	proxy.ErrorHandler = func(resp http.ResponseWriter, req *http.Request, err error) {
+	proxy.ErrorHandler = func(_ http.ResponseWriter, _ *http.Request, err error) {
 		desc := tgt.URL.String()
 		if tgt.Name != "" {
 			desc = fmt.Sprintf("%s(%s)", tgt.Name, tgt.URL.String())
@@ -319,18 +331,34 @@ func proxyHTTP(tgt *ProxyTarget, c echo.Context, config ProxyConfig) http.Handle
 		// context.Canceled error with unexported garbage value requiring a substring check, see
 		// https://github.com/golang/go/blob/6965b01ea248cabb70c3749fd218b36089a21efb/src/net/net.go#L416-L430
 		if err == context.Canceled || strings.Contains(err.Error(), "operation was canceled") {
-			httpError := echo.NewHTTPError(StatusCodeContextCanceled, fmt.Sprintf("client closed connection: %v", err))
+			httpError = echo.NewHTTPError(StatusCodeContextCanceled, fmt.Sprintf("client closed connection: %v", err))
 			httpError.Internal = err
-			c.Set(contextErrorField, httpError)
 		} else {
-			httpError := echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("remote %s unreachable, could not forward: %v", desc, err))
+			httpError = echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("remote %s unreachable, could not forward: %v", desc, err))
 			httpError.Internal = err
-			c.Set(contextErrorField, httpError)
 		}
 	}
 	proxy.Transport = config.Transport
 	proxy.ModifyResponse = config.ModifyResponse
-	return proxy
+
+	proxy.ServeHTTP(res, req)
+	return httpError
+}
+
+func prepareProxyReqRes(req *http.Request, res *echo.Response, clonedBody []byte, clonedContentLength int64) (*http.Request, *echo.Response, *fakeWriter) {
+	// create temp response writer
+	writer := NewFakeWriter(res.Writer.Header())
+
+	// create a copy for req and response, don't use original
+	proxyRes := new(echo.Response)
+	proxyRes.Writer = writer
+
+	// req
+	proxyReq := req.Clone(req.Context())
+	proxyReq.Body = io.NopCloser(bytes.NewBuffer(clonedBody)) // refill body
+	proxyReq.ContentLength = clonedContentLength
+
+	return proxyReq, proxyRes, writer
 }
 
 func (p *ProxyTarget) IncreaseRate() {
@@ -340,4 +368,45 @@ func (p *ProxyTarget) IncreaseRate() {
 func (p *ProxyTarget) DecreaseRate() {
 	// TODO: use formula
 	p.Rate--
+}
+
+type fakeWriter struct {
+	statusCode int
+	header     http.Header
+	buf        *bytes.Buffer
+}
+
+func NewFakeWriter(headers http.Header) *fakeWriter {
+	h := make(http.Header)
+	for k, v := range headers {
+		h[k] = v
+	}
+
+	return &fakeWriter{
+		header: h,
+		buf:    &bytes.Buffer{},
+	}
+}
+
+func (fw *fakeWriter) Header() http.Header {
+	return fw.header
+}
+
+func (fw *fakeWriter) Write(data []byte) (int, error) {
+	return fw.buf.Write(data)
+}
+
+func (fw *fakeWriter) WriteHeader(statusCode int) {
+	fw.statusCode = statusCode
+}
+
+func (fw *fakeWriter) FlushHeaders(w http.ResponseWriter) {
+	for k, v := range fw.header {
+		if len(v) == 0 {
+			continue
+		}
+
+		w.Header().Set(k, v[0])
+	}
+
 }
