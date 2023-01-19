@@ -59,17 +59,20 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 	switch method {
 	case getAccountInfo:
 		var resp *rpc.GetAccountInfoResult
-		if resp, err = rpcClient.GetAccountInfo(a.ctx, solana.SystemProgramID); err == nil && resp != nil && resp.Value != nil && resp.Value.Owner == solanaProgramOwner {
+		resp, err = rpcClient.GetAccountInfo(a.ctx, solana.SystemProgramID)
+		if err == nil && resp != nil && resp.Value != nil && resp.Value.Owner == solanaProgramOwner {
 			out = true
 		}
 	case getBalance:
 		var resp *rpc.GetBalanceResult
-		if resp, err = rpcClient.GetBalance(a.ctx, solana.SystemProgramID, rpc.CommitmentProcessed); err == nil && resp != nil && resp.Value == 1 {
+		resp, err = rpcClient.GetBalance(a.ctx, solana.SystemProgramID, rpc.CommitmentProcessed)
+		if err == nil && resp != nil && resp.Value == 1 {
 			out = true
 		}
 	case getBlockHeight:
 		var resp uint64
-		if resp, err = rpcClient.GetBlockHeight(a.ctx, rpc.CommitmentProcessed); err == nil && resp > 0 {
+		resp, err = rpcClient.GetBlockHeight(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp > 0 {
 			out = true
 		}
 	case getBlockTime:
@@ -77,73 +80,89 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		block, err = rpcClient.GetSlot(a.ctx, rpc.CommitmentProcessed)
 		if err == nil {
 			var resp *solana.UnixTimeSeconds
-			if resp, err = rpcClient.GetBlockTime(a.ctx, block-100); err == nil && resp != nil && resp.Time().Unix() > 0 {
+			resp, err = rpcClient.GetBlockTime(a.ctx, block-100)
+			if err == nil && resp != nil && resp.Time().Unix() > 0 {
 				out = true
 			}
 		}
 	case getEpochInfo:
 		var resp *rpc.GetEpochInfoResult
-		if resp, err = rpcClient.GetEpochInfo(a.ctx, rpc.CommitmentProcessed); err == nil && resp != nil && resp.TransactionCount != nil {
+		resp, err = rpcClient.GetEpochInfo(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp != nil && resp.TransactionCount != nil {
 			out = true
 		}
 	case getInflationRate:
 		var resp *rpc.GetInflationRateResult
-		if resp, err = rpcClient.GetInflationRate(a.ctx); err == nil && resp != nil && (resp.Validator+resp.Total+resp.Foundation+resp.Epoch) > 0 {
+		resp, err = rpcClient.GetInflationRate(a.ctx)
+		if err == nil && resp != nil &&
+			(resp.Validator+resp.Total+resp.Foundation+resp.Epoch) > 0 {
 			out = true
 		}
 	case getInflationReward:
 		var resp []*rpc.GetInflationRewardResult
-		if resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil); err == nil && len(resp) == 1 {
+		resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil)
+		if err == nil && len(resp) == 1 {
 			out = true
 		}
 	case getLatestBlockhash:
 		var resp *rpc.GetLatestBlockhashResult
-		if resp, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentProcessed); err == nil && resp != nil && resp.Value != nil && !resp.Value.Blockhash.IsZero() {
+		resp, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp != nil && resp.Value != nil && !resp.Value.Blockhash.IsZero() {
 			out = true
 		}
 	case getMinimumBalanceForRentExemption:
 		var resp uint64
-		if resp, err = rpcClient.GetMinimumBalanceForRentExemption(a.ctx, 100, rpc.CommitmentProcessed); err == nil && resp > 0 {
+		resp, err = rpcClient.GetMinimumBalanceForRentExemption(a.ctx, 100, rpc.CommitmentProcessed)
+		if err == nil && resp > 0 {
 			out = true
 		}
 	case getMultipleAccounts:
 		var resp *rpc.GetMultipleAccountsResult
-		if resp, err = rpcClient.GetMultipleAccounts(a.ctx, solana.SystemProgramID); err == nil && resp != nil && resp.Value != nil && len(resp.Value) > 0 && resp.Value[0].Owner == solanaProgramOwner {
+		resp, err = rpcClient.GetMultipleAccounts(a.ctx, solana.SystemProgramID)
+		if err == nil && resp != nil && resp.Value != nil &&
+			len(resp.Value) > 0 && resp.Value[0].Owner == solanaProgramOwner {
 			out = true
 		}
 	case getProgramAccounts:
 		var resp rpc.GetProgramAccountsResult
-		if resp, err = rpcClient.GetProgramAccounts(a.ctx, testKey2); err == nil && len(resp) > 0 {
+		resp, err = rpcClient.GetProgramAccounts(a.ctx, testKey2)
+		if err == nil && len(resp) > 0 {
 			out = true
 		}
 	case getRecentPerformanceSamples:
 		var resp []*rpc.GetRecentPerformanceSamplesResult
-		if resp, err = rpcClient.GetRecentPerformanceSamples(a.ctx, nil); err == nil && len(resp) > 0 {
+		resp, err = rpcClient.GetRecentPerformanceSamples(a.ctx, nil)
+		if err == nil && len(resp) > 0 {
 			out = true
 		}
 	case getSignaturesForAddress:
 		var resp []*rpc.TransactionSignature
-		if resp, err = rpcClient.GetSignaturesForAddress(a.ctx, testKey2); err == nil && len(resp) > 0 {
+		resp, err = rpcClient.GetSignaturesForAddress(a.ctx, testKey2)
+		if err == nil && len(resp) > 0 {
 			out = true
 		}
 	case getSignatureStatuses:
 		var resp *rpc.GetSignatureStatusesResult
-		if resp, err = rpcClient.GetSignatureStatuses(a.ctx, true, a.signatureForAddress); err == nil && len(resp.Value) > 0 && resp.Value[0] != nil {
+		resp, err = rpcClient.GetSignatureStatuses(a.ctx, true, a.signatureForAddress)
+		if err == nil && len(resp.Value) > 0 && resp.Value[0] != nil {
 			out = true
 		}
 	case getSlot:
 		var resp uint64
-		if resp, err = rpcClient.GetSlot(a.ctx, rpc.CommitmentProcessed); err == nil && resp > 0 {
+		resp, err = rpcClient.GetSlot(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp > 0 {
 			out = true
 		}
 	case getSupply:
 		var resp *rpc.GetSupplyResult
-		if resp, err = rpcClient.GetSupply(a.ctx, rpc.CommitmentProcessed); err == nil && resp != nil && resp.Value != nil && len(resp.Value.NonCirculatingAccounts) > 0 {
+		resp, err = rpcClient.GetSupply(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp != nil && resp.Value != nil && len(resp.Value.NonCirculatingAccounts) > 0 {
 			out = true
 		}
 	case getTokenAccountBalance:
 		var resp *rpc.GetTokenAccountBalanceResult
-		if resp, err = rpcClient.GetTokenAccountBalance(a.ctx, testTokenAccount, rpc.CommitmentProcessed); err == nil && resp != nil && resp.Value != nil && resp.Value.Decimals > 0 {
+		resp, err = rpcClient.GetTokenAccountBalance(a.ctx, testTokenAccount, rpc.CommitmentProcessed)
+		if err == nil && resp != nil && resp.Value != nil && resp.Value.Decimals > 0 {
 			out = true
 		}
 	case getTokenAccountsByOwner:
@@ -151,7 +170,9 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 			Mint: &testMint,
 		}
 		var resp *rpc.GetTokenAccountsResult
-		if resp, err = rpcClient.GetTokenAccountsByOwner(a.ctx, testKey3, &conf, nil); err == nil && resp != nil && len(resp.Value) > 0 && resp.Value[0] != nil && resp.Value[0].Account.Owner == solana.TokenProgramID {
+		resp, err = rpcClient.GetTokenAccountsByOwner(a.ctx, testKey3, &conf, nil)
+		if err == nil && resp != nil && len(resp.Value) > 0 &&
+			resp.Value[0] != nil && resp.Value[0].Account.Owner == solana.TokenProgramID {
 			out = true
 		}
 	case getTransaction:
@@ -159,17 +180,20 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		ops := rpc.GetTransactionOpts{
 			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 		}
-		if resp, err = rpcClient.GetTransaction(a.ctx, a.signatureForAddress, &ops); err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
+		resp, err = rpcClient.GetTransaction(a.ctx, a.signatureForAddress, &ops)
+		if err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
 			out = true
 		}
 	case getTransactionCount:
 		var resp uint64
-		if resp, err = rpcClient.GetTransactionCount(a.ctx, rpc.CommitmentProcessed); err == nil && resp > 0 {
+		resp, err = rpcClient.GetTransactionCount(a.ctx, rpc.CommitmentProcessed)
+		if err == nil && resp > 0 {
 			out = true
 		}
 	case getVoteAccounts:
 		var resp *rpc.GetVoteAccountsResult
-		if resp, err = rpcClient.GetVoteAccounts(a.ctx, nil); err == nil && resp != nil && len(resp.Current) > 0 {
+		resp, err = rpcClient.GetVoteAccounts(a.ctx, nil)
+		if err == nil && resp != nil && len(resp.Current) > 0 {
 			out = true
 		}
 	case isBlockhashValid:
@@ -177,7 +201,8 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		blockhash, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentFinalized)
 		if err == nil && blockhash != nil && blockhash.Value != nil {
 			var resp *rpc.IsValidBlockhashResult
-			if resp, err = rpcClient.IsBlockhashValid(a.ctx, blockhash.Value.Blockhash, rpc.CommitmentFinalized); err == nil && resp != nil && resp.Value {
+			resp, err = rpcClient.IsBlockhashValid(a.ctx, blockhash.Value.Blockhash, rpc.CommitmentFinalized)
+			if err == nil && resp != nil && resp.Value {
 				out = true
 			}
 		}
