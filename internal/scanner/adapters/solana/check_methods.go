@@ -247,6 +247,8 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 				method == getTokenAccountsByOwner && typedErr.Code == -32010 || method == getProgramAccounts && typedErr.Code == -32010 ||
 				method == getBlockTime && typedErr.Code == -32004 {
 				err = nil
+			} else {
+				err = reformatSolanaRpcError(err)
 			}
 			code = http.StatusInternalServerError
 		} else if parseErr, ok := err.(*jsonrpc.HTTPError); ok {
