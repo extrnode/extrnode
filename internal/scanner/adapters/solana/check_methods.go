@@ -156,9 +156,8 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		}
 	case getTransaction:
 		var resp *rpc.GetTransactionResult
-		var i uint64 = 0
 		ops := rpc.GetTransactionOpts{
-			MaxSupportedTransactionVersion: &i,
+			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 		}
 		if resp, err = rpcClient.GetTransaction(a.ctx, a.signatureForAddress, &ops); err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
 			out = true
