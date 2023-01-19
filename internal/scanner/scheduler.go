@@ -76,7 +76,10 @@ func (s *scanner) scheduleScans(ctx context.Context) {
 				log.Logger.Scanner.Info("stopping scanner scheduler")
 				return
 
-			case s.taskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}:
+			default:
+				log.Logger.Scanner.Debugf("Scheduling scan for peer %s", p.Address)
+
+				s.taskQueue <- scannerTask{peer: p, chain: chainType(p.BlockchainName)}
 			}
 		}
 
