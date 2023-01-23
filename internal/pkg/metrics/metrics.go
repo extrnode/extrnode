@@ -64,14 +64,14 @@ func init() {
 		Name:        "node_response_time",
 		Description: "the time it took to fetch data from node",
 		Type:        histogramVecMetricType,
-		Args:        []string{serverMetricArg},
+		Args:        []string{methodMetricArg, serverMetricArg},
 	})
 	initMetric(&metrics.nodeAttemptsPerRequest, &prometheus.Metric{
 		ID:          "nodeAttemptsPerRequest",
 		Name:        "node_attempts_per_request",
 		Description: "attempts to fetch data from node",
 		Type:        histogramVecMetricType,
-		Args:        []string{serverMetricArg},
+		Args:        []string{methodMetricArg, serverMetricArg},
 	})
 	initMetric(&metrics.bytesReadTotal, &prometheus.Metric{
 		ID:   "bytesReadTotal",
@@ -118,12 +118,12 @@ func ObserveProcessingTime(d time.Duration) {
 	l := prom.Labels{httpCodeMetricArg: "httpCode", methodMetricArg: "method", serverMetricArg: "server"}
 	metrics.processingTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d.Milliseconds()))
 }
-func ObserveNodeResponseTime(server string, d time.Duration) {
-	l := prom.Labels{serverMetricArg: server}
-	metrics.nodeResponseTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d.Milliseconds()))
+func ObserveNodeResponseTime(method, server string, d int64) {
+	l := prom.Labels{methodMetricArg: method, serverMetricArg: server}
+	metrics.nodeResponseTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d))
 }
-func ObserveNodeAttemptsPerRequest(server string, attempts int) {
-	l := prom.Labels{serverMetricArg: server}
+func ObserveNodeAttemptsPerRequest(method, server string, attempts int) {
+	l := prom.Labels{methodMetricArg: method, serverMetricArg: server}
 	metrics.nodeAttemptsPerRequest.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(attempts))
 }
 
