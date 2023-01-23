@@ -5,7 +5,9 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,6 +17,8 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
+	"extrnode-be/internal/api/middlewares"
+	"extrnode-be/internal/api/middlewares/proxy"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
@@ -48,15 +52,9 @@ const (
 	csvOutputFormat     = "csv"
 	haproxyOutputFormat = "haproxy"
 
-	cacheTTL                     = 5 * time.Minute
-	apiReadTimeout               = 5 * time.Second
-	apiWriteTimeout              = 30 * time.Second
-	customTransportDialerTimeout = 2 * time.Second
-	bodyLimit                    = 1000
-	reqBodyContextKey            = "reqBody"
-	resBodyContextKey            = "resBody"
-	reqRpcMethodContextKey       = "reqMethod"
-	rpcErrorContextKey           = "rpcError"
+	cacheTTL        = 5 * time.Minute
+	apiReadTimeout  = 5 * time.Second
+	apiWriteTimeout = 30 * time.Second
 
 	serverShutdownTimeout = 10 * time.Second
 )
@@ -156,15 +154,55 @@ func (a *api) initApiHandlers() error {
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
 
+	urls, err := a.getEndpointsURLs(solanaBlockchain)
+	if err != nil {
+		return err
+	}
+
+	const (
+		reqMethodContextKey         = "req_method"
+		reqBodyContextKey           = "req_body"
+		resBodyContextKey           = "res_body"
+		rpcErrorContextKey          = "res_err"
+		proxyEndpointContextKey     = "proxy_host"
+		proxyAttemptsContextKey     = "proxy_attempts"
+		proxyResponseTimeContextKey = "proxy_time"
+	)
+
+	// proxy
+	generalGroup.POST("/", nil,
+		middlewares.RequestIDMiddleware(),
+		middlewares.NewLoggerMiddleware(middlewares.LoggerContextConfig{
+			ReqMethodContextKey:         reqMethodContextKey,
+			ReqBodyContextKey:           reqBodyContextKey,
+			ResBodyContextKey:           resBodyContextKey,
+			RpcErrorContextKey:          rpcErrorContextKey,
+			ProxyEndpointContextKey:     proxyEndpointContextKey,
+			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
+			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
+		}),
+		middlewares.NewMetricsMiddleware(middlewares.MetricsContextConfig{
+			ReqMethodContextKey:         reqMethodContextKey,
+			RpcErrorContextKey:          rpcErrorContextKey,
+			ProxyEndpointContextKey:     proxyEndpointContextKey,
+			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
+			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
+		}),
+		middlewares.NewBodyDumpMiddleware(middlewares.BodyDumpContextConfig{
+			ReqMethodContextKey: reqMethodContextKey,
+			ReqBodyContextKey:   reqBodyContextKey,
+			ResBodyContextKey:   resBodyContextKey,
+			RpcErrorContextKey:  rpcErrorContextKey,
+		}),
+		proxy.NewProxyMiddleware(urls, proxy.ProxyContextConfig{
+			ProxyEndpointContextKey:     proxyEndpointContextKey,
+			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
+			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
+		}),
+	)
+
 	// api docs
 	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
-
-	// chains
-	chainsGroup := a.router.Group("", chainsMiddlewares()...)
-	err := a.solanaProxyHandler(chainsGroup)
-	if err != nil {
-		return fmt.Errorf("solanaProxyHandler: %s", err)
-	}
 
 	return nil
 }
@@ -211,4 +249,40 @@ func (a *api) Stop() error {
 
 func (a *api) WaitGroup() *sync.WaitGroup {
 	return a.waitGroup
+}
+
+func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
+	blockchainID, ok := a.blockchainIDs[blockchain]
+	if !ok {
+		return nil, fmt.Errorf("fail to get blockchainID")
+	}
+	isRpc := true
+
+	// TODO: update endpoints
+	endpoints, err := a.storage.GetEndpoints(blockchainID, maxLimit, &isRpc, nil, nil, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("GetEndpoints: %s", err)
+	}
+
+	// temp sort solution
+	// TODO: sort by methods
+	sort.Slice(endpoints, func(i, j int) bool {
+		return endpoints[i].SupportedMethods.AverageResponseTime() < endpoints[j].SupportedMethods.AverageResponseTime()
+	})
+
+	var urls []*url.URL
+	for _, e := range endpoints {
+		schema := "http://"
+		if e.IsSsl {
+			schema = "https://"
+		}
+		parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", schema, e.Endpoint))
+		if err != nil {
+			return nil, fmt.Errorf("url.Parse: %s", err)
+		}
+
+		urls = append(urls, parsedUrl)
+	}
+
+	return urls, nil
 }

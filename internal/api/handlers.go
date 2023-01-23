@@ -122,6 +122,7 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 		}
 		return csvResp(ctx, resCsv, "")
 	}
+
 	if format == haproxyOutputFormat {
 		var resString []byte
 		for _, r := range res {

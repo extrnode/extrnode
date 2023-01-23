@@ -1,15 +1,19 @@
 package api
 
 import (
+	"extrnode-be/internal/models"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo/v4"
 )
 
 const (
-	mimeTextCSV = "text/csv"
+	mimeTextCSV    = "text/csv"
+	shortTermCache = 1 * time.Minute
+	statsCacheKey  = "stats"
 )
 
 func csvResp(ctx echo.Context, res interface{}, fileName string) error {
@@ -28,4 +32,20 @@ func textResp(ctx echo.Context, res []byte) error {
 	_, err := ctx.Response().Write(res)
 
 	return err
+}
+
+func (a *api) getStats() (res models.Stat, err error) {
+	cacheValue, ok := a.cache.Get(statsCacheKey)
+	if ok {
+		return cacheValue.(models.Stat), nil
+	}
+
+	res, err = a.storage.GetStats()
+	if err != nil {
+		return res, err
+	}
+
+	a.cache.Set(statsCacheKey, res, shortTermCache)
+
+	return res, nil
 }
