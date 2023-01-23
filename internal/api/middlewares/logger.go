@@ -28,6 +28,7 @@ func NewLoggerMiddleware(config LoggerContextConfig) echo.MiddlewareFunc {
 		LogError:     true,
 		LogRemoteIP:  true,
 		LogUserAgent: true,
+		LogURI:       true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			rpcMethod, _ := c.Get(config.ReqMethodContextKey).(string)
 			rpcErrorCode, _ := c.Get(config.RpcErrorContextKey).(int)
@@ -37,14 +38,14 @@ func NewLoggerMiddleware(config LoggerContextConfig) echo.MiddlewareFunc {
 
 			if v.Error != nil || rpcErrorCode != 0 || v.Status >= http.StatusBadRequest {
 				log.Logger.Proxy.Errorf("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %s, attempts: %d, node_response_time: %dms, "+
-					"rpc_error_code: %d, error: %s, request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s",
+					"rpc_error_code: %d, error: %s, request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s, path: %s",
 					v.Status, v.Method, v.RequestID, v.Latency.Milliseconds(), endpoint, rpcMethod, attempts, responseTime,
-					rpcErrorCode, v.Error, c.Get(config.ReqBodyContextKey), c.Get(config.ResBodyContextKey), v.RemoteIP, v.UserAgent)
+					rpcErrorCode, v.Error, c.Get(config.ReqBodyContextKey), c.Get(config.ResBodyContextKey), v.RemoteIP, v.UserAgent, v.URI)
 			} else {
 				log.Logger.Proxy.Infof("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %s, attempts: %d, node_response_time: %dms, "+
-					"request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s",
+					"request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s, path: %s",
 					v.Status, v.Method, v.RequestID, v.Latency.Milliseconds(), endpoint, rpcMethod, attempts, responseTime,
-					c.Get(config.ReqBodyContextKey), c.Get(config.ResBodyContextKey), v.RemoteIP, v.UserAgent)
+					c.Get(config.ReqBodyContextKey), c.Get(config.ResBodyContextKey), v.RemoteIP, v.UserAgent, v.URI)
 			}
 
 			return nil
