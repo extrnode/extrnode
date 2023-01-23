@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	log2 "github.com/labstack/gommon/log"
 	"github.com/patrickmn/go-cache"
 
 	"extrnode-be/internal/api/middlewares"
@@ -107,11 +108,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 		}
 	}
 
-	a.router.Server.ReadTimeout = apiReadTimeout
-	a.router.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
-
-	a.metricsServer.Server.ReadTimeout = apiReadTimeout
-	a.metricsServer.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
+	a.setupServer()
 
 	err = a.initApiHandlers()
 	if err != nil {
@@ -121,9 +118,30 @@ func NewAPI(cfg config.Config) (*api, error) {
 	return a, nil
 }
 
+func (a *api) setupServer() {
+	a.router.Server.ReadTimeout = apiReadTimeout
+	a.router.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
+	a.router.Logger.SetLevel(log2.OFF)
+
+	a.metricsServer.Server.ReadTimeout = apiReadTimeout
+	a.metricsServer.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
+	a.metricsServer.Logger.SetLevel(log2.OFF)
+}
+
 func (a *api) initMetrics() {
 	a.metricsServer.HideBanner = true
 	a.metricsServer.Use(middleware.Recover())
+	a.metricsServer.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus: true,
+		LogMethod: true,
+		LogError:  true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			if v.Error != nil {
+				log.Logger.Api.Errorf("metrics: code %d method %s: %s", v.Status, v.Method, v.Error)
+			}
+			return nil
+		},
+	}))
 
 	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
 	// Scrape metrics from Main Server

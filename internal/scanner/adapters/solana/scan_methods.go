@@ -30,6 +30,10 @@ func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now
 		}
 	}
 
+	if peer.IsRpc != isRpc {
+		log.Logger.Scanner.Debugf("peer updated %s:%d: isRpc %t", peer.Address, peer.Port, isRpc)
+	}
+
 	return nil
 }
 
