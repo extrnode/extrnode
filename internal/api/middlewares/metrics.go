@@ -15,6 +15,7 @@ type MetricsContextConfig struct {
 	ProxyEndpointContextKey     string
 	ProxyAttemptsContextKey     string
 	ProxyResponseTimeContextKey string
+	ProxyUserErrorContextKey    string
 }
 
 func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
@@ -27,6 +28,7 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 			endpoint, _ := c.Get(config.ProxyEndpointContextKey).(string)
 			attempts, _ := c.Get(config.ProxyAttemptsContextKey).(int)
 			nodeResponseTime, _ := c.Get(config.ProxyResponseTimeContextKey).(int64)
+			userError := c.Get(config.ProxyUserErrorContextKey)
 			cl := c.Request().Header.Get(echo.HeaderContentLength)
 			if cl == "" {
 				cl = "0"
@@ -42,6 +44,9 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 			}
 			metrics.ObserveNodeAttemptsPerRequest(rpcMethod, endpoint, attempts)
 			metrics.ObserveNodeResponseTime(rpcMethod, endpoint, nodeResponseTime)
+			if userError == true {
+				metrics.IncUserFailedRequestsCnt(fmt.Sprintf("%d", rpcErrorCode), httpStatusString, rpcMethod, endpoint)
+			}
 
 			return err
 		}
