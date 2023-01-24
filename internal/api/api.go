@@ -58,6 +58,8 @@ const (
 	apiWriteTimeout = 30 * time.Second
 
 	serverShutdownTimeout = 10 * time.Second
+
+	endpointsReloadInterval = 5 * time.Minute
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
@@ -172,10 +174,8 @@ func (a *api) initApiHandlers() error {
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
 
-	urls, err := a.getEndpointsURLs(solanaBlockchain)
-	if err != nil {
-		return err
-	}
+	transport := proxy.NewProxyTransport()
+	go a.updateProxyEndpoints(transport)
 
 	const (
 		reqMethodContextKey         = "req_method"
@@ -212,7 +212,7 @@ func (a *api) initApiHandlers() error {
 			ResBodyContextKey:   resBodyContextKey,
 			RpcErrorContextKey:  rpcErrorContextKey,
 		}),
-		proxy.NewProxyMiddleware(urls, proxy.ProxyContextConfig{
+		proxy.NewProxyMiddleware(transport, proxy.ProxyContextConfig{
 			ProxyEndpointContextKey:     proxyEndpointContextKey,
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
@@ -276,7 +276,6 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 	}
 	isRpc := true
 
-	// TODO: update endpoints
 	endpoints, err := a.storage.GetEndpoints(blockchainID, maxLimit, &isRpc, nil, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetEndpoints: %s", err)
@@ -303,4 +302,17 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 	}
 
 	return urls, nil
+}
+
+func (a *api) updateProxyEndpoints(transport *proxy.ProxyTransport) {
+	for {
+		urls, err := a.getEndpointsURLs(solanaBlockchain)
+		if err != nil {
+			log.Logger.Api.Logger.Fatalf("Cannot get endpoints from db: %s", err.Error())
+		}
+
+		transport.UpdateTargets(urls)
+
+		time.Sleep(endpointsReloadInterval)
+	}
 }
