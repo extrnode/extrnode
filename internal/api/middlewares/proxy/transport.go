@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"extrnode-be/internal/pkg/log"
@@ -21,31 +20,24 @@ type proxyTarget struct {
 	URL *url.URL
 }
 
-type proxyTransport struct {
-	i           uint32
+type ProxyTransport struct {
+	i           int
 	maxAttempts int
 	transport   *http.Transport
 	targets     []proxyTarget
-	config      ProxyContextConfig
 	sync.Mutex
 }
 
 type proxyTransportWithContext struct {
-	transport *proxyTransport
+	transport *ProxyTransport
 	c         echo.Context
+	config    ProxyContextConfig
 }
 
 const transportDialerTimeout = 2 * time.Second
 
-func newProxyTransport(targets []*url.URL, config ProxyContextConfig) *proxyTransport {
-	pt := make([]proxyTarget, len(targets))
-	for i := range targets {
-		pt[i] = proxyTarget{
-			URL: targets[i],
-		}
-	}
-
-	return &proxyTransport{
+func NewProxyTransport() *ProxyTransport {
+	return &ProxyTransport{
 		transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -58,16 +50,15 @@ func newProxyTransport(targets []*url.URL, config ProxyContextConfig) *proxyTran
 			TLSHandshakeTimeout:   3 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		targets:     pt,
-		config:      config,
 		maxAttempts: 10,
 	}
 }
 
-func (pt *proxyTransport) WithContext(c echo.Context) *proxyTransportWithContext {
+func (pt *ProxyTransport) WithContext(c echo.Context, config ProxyContextConfig) *proxyTransportWithContext {
 	return &proxyTransportWithContext{
 		transport: pt,
 		c:         c,
+		config:    config,
 	}
 }
 
@@ -108,49 +99,80 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		break
 	}
 
-	ptc.c.Set(ptc.transport.config.ProxyEndpointContextKey, target.URL.String())
-	ptc.c.Set(ptc.transport.config.ProxyAttemptsContextKey, i+1)
-	ptc.c.Set(ptc.transport.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
+	ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.URL.String())
+	ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
+	ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
 
 	return resp, err
 }
 
 // Next returns an upstream target using round-robin technique.
-func (pt *proxyTransport) NextProxyTarget() *proxyTarget {
-	pt.i = pt.i % uint32(len(pt.targets))
+func (pt *ProxyTransport) NextProxyTarget() *proxyTarget {
+	pt.Lock()
+	defer pt.Unlock()
+
+	pt.i = pt.i % len(pt.targets)
 	t := &pt.targets[pt.i]
-	atomic.AddUint32(&pt.i, 1)
+	pt.i++
 	return t
 }
 
-func (pt *proxyTransport) GetTargetsLen() int {
+func (pt *ProxyTransport) GetTargetsLen() int {
 	return len(pt.targets)
 }
 
 // AddTarget adds an upstream target to the list.
-func (pt *proxyTransport) AddTarget(url *url.URL) bool {
+func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 	for _, t := range pt.targets {
 		if strings.EqualFold(t.URL.String(), url.String()) {
 			return false
 		}
 	}
+
 	pt.Lock()
-	defer pt.Unlock()
 	pt.targets = append(pt.targets, proxyTarget{
 		URL: url,
 	})
+	pt.Unlock()
+
+	log.Logger.Api.Debugf("Transport added target: %s", url.String())
 	return true
 }
 
 // RemoveTarget removes an upstream target from the list.
-func (pt *proxyTransport) RemoveTarget(url *url.URL) bool {
-	pt.Lock()
-	defer pt.Unlock()
+func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 	for i, t := range pt.targets {
 		if strings.EqualFold(t.URL.String(), url.String()) {
+			pt.Lock()
 			pt.targets = append(pt.targets[:i], pt.targets[i+1:]...)
+			pt.Unlock()
+
+			log.Logger.Api.Debugf("Transport removed target: %s", url.String())
 			return true
 		}
 	}
+
 	return false
+}
+
+// AddTarget adds an upstream target to the list.
+func (pt *ProxyTransport) UpdateTargets(urls []*url.URL) {
+	// Remove targets
+	for _, t := range pt.targets {
+		var found bool
+		for _, u := range urls {
+			if strings.EqualFold(t.URL.String(), u.String()) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			pt.RemoveTarget(t.URL)
+		}
+	}
+
+	for _, u := range urls {
+		pt.AddTarget(u)
+	}
 }

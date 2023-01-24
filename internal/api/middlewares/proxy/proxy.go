@@ -17,10 +17,9 @@ type ProxyContextConfig struct {
 	ProxyResponseTimeContextKey string // in ms. type int64
 }
 
-func NewProxyMiddleware(targets []*url.URL, config ProxyContextConfig) echo.MiddlewareFunc {
+func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) echo.MiddlewareFunc {
 	// set some basic url so validation does not fail, later we get proxy url from transport in roundtripper
 	baseUrl, _ := url.Parse("https://localhost:8080")
-	transport := newProxyTransport(targets, config)
 	responseModifier := newResponseModifier(config)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -42,7 +41,7 @@ func NewProxyMiddleware(targets []*url.URL, config ProxyContextConfig) echo.Midd
 			}
 
 			proxy := httputil.NewSingleHostReverseProxy(baseUrl)
-			proxy.Transport = transport.WithContext(c)
+			proxy.Transport = transport.WithContext(c, config)
 			proxy.ModifyResponse = responseModifier.WithContext(c)
 
 			eh := NewErrorHandler(config)
