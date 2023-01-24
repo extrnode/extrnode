@@ -174,7 +174,7 @@ func (a *api) initApiHandlers() error {
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
 
-	transport := proxy.NewProxyTransport()
+	transport := proxy.NewProxyTransport(false)
 	go a.updateProxyEndpoints(transport)
 
 	const (

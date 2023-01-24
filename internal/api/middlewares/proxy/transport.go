@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"extrnode-be/internal/pkg/log"
 	"fmt"
 	"io"
 	"net"
@@ -11,20 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/pkg/log"
-
 	"github.com/labstack/echo/v4"
 )
-
-type proxyTarget struct {
-	URL *url.URL
-}
 
 type ProxyTransport struct {
 	i           int
 	maxAttempts int
 	transport   *http.Transport
-	targets     []proxyTarget
+	targets     []*proxyTarget
+	withJail    bool
 	sync.Mutex
 }
 
@@ -35,8 +31,10 @@ type proxyTransportWithContext struct {
 }
 
 const transportDialerTimeout = 2 * time.Second
+const targetJailTime = time.Second
+const consecutiveSucessResponses = 10
 
-func NewProxyTransport() *ProxyTransport {
+func NewProxyTransport(withJail bool) *ProxyTransport {
 	return &ProxyTransport{
 		transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -50,7 +48,8 @@ func NewProxyTransport() *ProxyTransport {
 			TLSHandshakeTimeout:   3 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		maxAttempts: 10,
+		maxAttempts: 5,
+		withJail:    withJail,
 	}
 }
 
@@ -79,11 +78,14 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		default:
 		}
 
-		target = ptc.transport.NextProxyTarget()
+		target, err := ptc.transport.NextAvailableTarget()
+		if err != nil {
+			return nil, err
+		}
 
 		// modify req url
-		req.URL.Scheme = target.URL.Scheme
-		req.URL.Host = target.URL.Host
+		req.URL.Scheme = target.url.Scheme
+		req.URL.Host = target.url.Host
 
 		// refill body
 		req.Body = io.NopCloser(bytes.NewBuffer(clonedBody))
@@ -91,15 +93,19 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 
 		startTime = time.Now()
 		resp, err = ptc.transport.transport.RoundTrip(req)
-		if err != nil {
-			log.Logger.Api.Errorf("solana proxy (%s): %s", target.URL.String(), err)
+
+		// TODO: check if this user error or node error, in case of user do not ban the node
+		// and do not forward to next node
+		isNodeError := err != nil
+		target.UpdateAvailability(isNodeError)
+		if isNodeError {
 			continue
 		}
 
 		break
 	}
 
-	ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.URL.String())
+	ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.url.String())
 	ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
 	ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
 
@@ -107,31 +113,44 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 }
 
 // Next returns an upstream target using round-robin technique.
-func (pt *ProxyTransport) NextProxyTarget() *proxyTarget {
+func (pt *ProxyTransport) getNextTarget() *proxyTarget {
 	pt.Lock()
 	defer pt.Unlock()
 
 	pt.i = pt.i % len(pt.targets)
-	t := &pt.targets[pt.i]
+	t := pt.targets[pt.i]
 	pt.i++
 	return t
 }
 
-func (pt *ProxyTransport) GetTargetsLen() int {
-	return len(pt.targets)
+func (pt *ProxyTransport) NextAvailableTarget() (*proxyTarget, error) {
+	if !pt.withJail {
+		return pt.getNextTarget(), nil
+	}
+
+	for i := 0; i < len(pt.targets); i++ {
+		target := pt.getNextTarget()
+		if !target.isAvailable() {
+			continue
+		}
+
+		return target, nil
+	}
+
+	return nil, fmt.Errorf("no available targets")
 }
 
 // AddTarget adds an upstream target to the list.
 func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 	for _, t := range pt.targets {
-		if strings.EqualFold(t.URL.String(), url.String()) {
+		if strings.EqualFold(t.url.String(), url.String()) {
 			return false
 		}
 	}
 
 	pt.Lock()
-	pt.targets = append(pt.targets, proxyTarget{
-		URL: url,
+	pt.targets = append(pt.targets, &proxyTarget{
+		url: url,
 	})
 	pt.Unlock()
 
@@ -142,7 +161,7 @@ func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 // RemoveTarget removes an upstream target from the list.
 func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 	for i, t := range pt.targets {
-		if strings.EqualFold(t.URL.String(), url.String()) {
+		if strings.EqualFold(t.url.String(), url.String()) {
 			pt.Lock()
 			pt.targets = append(pt.targets[:i], pt.targets[i+1:]...)
 			pt.Unlock()
@@ -155,20 +174,53 @@ func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 	return false
 }
 
+type proxyTarget struct {
+	url            *url.URL
+	jailExpireTime int64
+	errCounter     int
+	successCounter int
+	sync.Mutex
+}
+
+// RemoveTarget removes an upstream target from the list.
+func (t *proxyTarget) UpdateAvailability(hasError bool) {
+	t.Lock()
+	defer t.Unlock()
+
+	if !t.isAvailable() {
+		return
+	}
+
+	if hasError {
+		t.successCounter = 0
+		t.errCounter++
+		t.jailExpireTime = time.Now().Add(targetJailTime * time.Duration(t.errCounter)).Unix()
+	} else if t.successCounter < consecutiveSucessResponses {
+		t.successCounter++
+	} else {
+		t.successCounter = 0
+		t.errCounter = 0
+	}
+}
+
+func (t *proxyTarget) isAvailable() bool {
+	return time.Now().Unix() > t.jailExpireTime
+}
+
 // AddTarget adds an upstream target to the list.
 func (pt *ProxyTransport) UpdateTargets(urls []*url.URL) {
 	// Remove targets
 	for _, t := range pt.targets {
 		var found bool
 		for _, u := range urls {
-			if strings.EqualFold(t.URL.String(), u.String()) {
+			if strings.EqualFold(t.url.String(), u.String()) {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			pt.RemoveTarget(t.URL)
+			pt.RemoveTarget(t.url)
 		}
 	}
 
