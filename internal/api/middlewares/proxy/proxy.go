@@ -15,6 +15,7 @@ type ProxyContextConfig struct {
 	ProxyEndpointContextKey     string
 	ProxyAttemptsContextKey     string
 	ProxyResponseTimeContextKey string // in ms. type int64
+	ProxyUserErrorContextKey    string
 }
 
 func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) echo.MiddlewareFunc {

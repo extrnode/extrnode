@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/labstack/echo/v4"
 )
 
@@ -102,6 +103,23 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 			continue
 		}
 
+		if resp.StatusCode >= 300 {
+			return resp, &jsonrpc.HTTPError{
+				Code: resp.StatusCode,
+			}
+		}
+
+		analysisErr := getResponseError(resp)
+		if analysisErr != nil {
+			log.Logger.Api.Errorf("responseError: %s", err.Error())
+
+			if analysisErr == ErrInvalidRequest {
+				ptc.c.Set(ptc.config.ProxyUserErrorContextKey, true)
+				break
+			}
+
+			continue
+		}
 		break
 	}
 

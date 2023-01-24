@@ -185,6 +185,7 @@ func (a *api) initApiHandlers() error {
 		proxyEndpointContextKey     = "proxy_host"
 		proxyAttemptsContextKey     = "proxy_attempts"
 		proxyResponseTimeContextKey = "proxy_time"
+		proxyUserErrorContextKey    = "user_error"
 	)
 
 	// proxy
@@ -205,6 +206,7 @@ func (a *api) initApiHandlers() error {
 			ProxyEndpointContextKey:     proxyEndpointContextKey,
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
+			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
 		}),
 		middlewares.NewBodyDumpMiddleware(middlewares.BodyDumpContextConfig{
 			ReqMethodContextKey: reqMethodContextKey,
@@ -216,6 +218,7 @@ func (a *api) initApiHandlers() error {
 			ProxyEndpointContextKey:     proxyEndpointContextKey,
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
+			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
 		}),
 	)
 
