@@ -3,11 +3,13 @@ package solana
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
+	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
@@ -128,6 +130,83 @@ func (a *SolanaAdapter) BeforeRun() error {
 	a.voteAccountsNodePubkey = make(map[string]struct{}, len(voteAccounts.Current))
 	for _, va := range voteAccounts.Current {
 		a.voteAccountsNodePubkey[va.NodePubkey.String()] = struct{}{}
+	}
+
+	return nil
+}
+
+const outdatedSlotShift = 15
+
+type peerWithSlot struct {
+	storage.PeerWithIpAndBlockchain
+	currentSlot uint64
+}
+
+func (a *SolanaAdapter) CheckOutdatedNodes() error {
+	var wg sync.WaitGroup
+	var mx sync.Mutex
+	trueValue := true
+
+	peers, err := a.storage.GetPeers(false, &trueValue, &trueValue, &trueValue, &a.blockchainID)
+	if err != nil {
+		return fmt.Errorf("GetPeers: %s", err)
+	}
+	if len(peers) == 0 {
+		return nil
+	}
+
+	res := make([]peerWithSlot, 0, len(peers))
+	wg.Add(len(peers))
+	for _, p := range peers {
+		go func(wg *sync.WaitGroup, p storage.PeerWithIpAndBlockchain) {
+			defer wg.Done()
+
+			rpcClient := createRpcWithTimeout(createNodeUrl(p, p.IsSSL))
+			slot, err := rpcClient.GetSlot(a.ctx, "")
+			if err != nil {
+				log.Logger.Scanner.Errorf("CheckOutdatedNodes GetSlot(%s:%d): %s", p.Address, p.Port, err)
+				return
+			}
+			if slot == 0 {
+				return
+			}
+
+			mx.Lock()
+			res = append(res, peerWithSlot{
+				PeerWithIpAndBlockchain: p,
+				currentSlot:             slot,
+			})
+			mx.Unlock()
+		}(&wg, p)
+	}
+
+	wg.Wait()
+
+	if len(res) == 0 {
+		return nil
+	}
+
+	var highestSlot uint64
+	for _, p := range res {
+		if p.currentSlot > highestSlot {
+			highestSlot = p.currentSlot
+		}
+	}
+
+	for _, p := range res {
+		var isOutdated bool
+		if p.currentSlot < highestSlot-outdatedSlotShift {
+			isOutdated = true
+		}
+
+		if p.IsOutdated != isOutdated {
+			log.Logger.Scanner.Debugf("CheckOutdatedNodes: outdated node %t %s:%d with slot %d; highestSlot %d", isOutdated, p.Address, p.Port, p.currentSlot, highestSlot)
+
+			err = a.storage.UpdatePeerIsOutdated(p.ID, isOutdated)
+			if err != nil {
+				log.Logger.Scanner.Errorf("UpdatePeerIsOutdated: %s", err)
+			}
+		}
 	}
 
 	return nil

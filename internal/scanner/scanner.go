@@ -73,6 +73,25 @@ func (s *scanner) RunNmap() error {
 
 	return nil
 }
+func (s *scanner) CheckOutdatedNodes() error {
+	for {
+		for _, a := range s.adapters {
+			err := a.CheckOutdatedNodes()
+			if err != nil {
+				return err
+			}
+		}
+
+		select {
+		case <-s.ctx.Done():
+			log.Logger.Scanner.Info("stopping CheckOutdatedNodes")
+			return nil
+
+		case <-time.After(checkOutdatedNodesInterval):
+			continue
+		}
+	}
+}
 
 func (s *scanner) getAdapter(task scannerTask) (adapter adapters.Adapter, ok bool) {
 	adapter, ok = s.adapters[task.chain]

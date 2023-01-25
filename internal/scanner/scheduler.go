@@ -11,9 +11,12 @@ import (
 
 type chainType string
 
-const chainTypeSolana chainType = "solana"
-const scannerInterval = time.Hour
-const nmapInterval = 3 * time.Hour
+const (
+	chainTypeSolana            chainType = "solana"
+	scannerInterval                      = time.Hour
+	nmapInterval                         = 3 * time.Hour
+	checkOutdatedNodesInterval           = time.Minute
+)
 
 type scannerTask struct {
 	peer  storage.PeerWithIpAndBlockchain
@@ -33,7 +36,7 @@ func (s *scanner) updateAdapters() error {
 
 func (s *scanner) scheduleNmap(ctx context.Context) {
 	for {
-		peers, err := s.storage.GetPeers(true)
+		peers, err := s.storage.GetPeers(true, nil, nil, nil, nil)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}
@@ -63,7 +66,7 @@ func (s *scanner) scheduleNmap(ctx context.Context) {
 
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		peers, err := s.storage.GetPeers(false)
+		peers, err := s.storage.GetPeers(false, nil, nil, nil, nil)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}

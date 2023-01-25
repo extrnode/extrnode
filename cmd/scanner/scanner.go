@@ -61,6 +61,13 @@ func main() {
 		}
 	}()
 
+	go func() {
+		err := app.CheckOutdatedNodes()
+		if err != nil {
+			log.Logger.Scanner.Fatalf("CheckOutdatedNodes: %s", err)
+		}
+	}()
+
 	// Termination handler.
 	util.GracefulStop(app.WaitGroup(), waitTimeout, func() {
 		err = app.Stop()

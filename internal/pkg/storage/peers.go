@@ -24,6 +24,7 @@ type (
 		IsMainNet    bool   `pg:"prs_is_main_net"`
 		NodePubkey   string `pg:"prs_node_pubkey"`
 		IsValidator  bool   `pg:"prs_is_validator"`
+		IsOutdated   bool   `pg:"prs_is_outdated"`
 	}
 
 	PeerWithIp struct {
@@ -117,6 +118,21 @@ func (p *PgStorage) UpdatePeerNodePubkey(peerID int, nodePubkey string) (err err
 	return nil
 }
 
+func (p *PgStorage) UpdatePeerIsOutdated(peerID int, isOutdated bool) (err error) {
+	if peerID == 0 {
+		return fmt.Errorf("empty peerID")
+	}
+
+	query := `UPDATE peers SET prs_is_outdated = ?
+			WHERE prs_id = ?`
+	_, err = p.db.Exec(query, isOutdated, peerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
 	if blockchainID == 0 {
 		return nil, fmt.Errorf("empty blockchainID")
@@ -139,7 +155,7 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 		LeftJoin(fmt.Sprintf("%s USING (cnt_id)", geoCountriesTable)).
 		LeftJoin(fmt.Sprintf("%s USING (prs_id)", rpcPeersMethodsTable)).
 		LeftJoin(fmt.Sprintf("%s USING (mtd_id)", rpcMethodsTable)).
-		Where("prs_is_alive IS TRUE AND prs_is_main_net IS TRUE AND peers.blc_id = ?", blockchainID).
+		Where("prs_is_alive IS TRUE AND prs_is_main_net IS TRUE AND prs_is_outdated IS FALSE AND peers.blc_id = ?", blockchainID).
 		GroupBy("peers.prs_id, ip_addr, ntw_mask, ntw_name, ntw_as, cnt_alpha2, cnt_alpha3, cnt_name")
 	if isRpc != nil {
 		q = q.Where("prs_is_rpc = ?", *isRpc)
@@ -173,17 +189,34 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 	return res, nil
 }
 
-func (p *PgStorage) GetPeers(isUniqIP bool) (res []PeerWithIpAndBlockchain, err error) {
-	s := "prs_id, blc_id, blc_name, ip_id, ip_addr, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator"
+func (p *PgStorage) GetPeers(isUniqIP bool, isAlive, isMainNet, isRpc *bool, blockchainID *int) (res []PeerWithIpAndBlockchain, err error) {
+	if blockchainID != nil && *blockchainID == 0 {
+		return nil, fmt.Errorf("empty blockchainID")
+	}
+
+	s := "prs_id, blc_id, blc_name, ip_id, ip_addr, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator, prs_is_outdated"
 	if isUniqIP {
 		s = fmt.Sprintf("DISTINCT on (ip_id) %s", s)
 	}
 
-	query, args, err := sq.Select(s).
+	q := sq.Select(s).
 		From(peersTable).
 		LeftJoin(fmt.Sprintf("%s USING(ip_id)", ipsTable)).
-		LeftJoin(fmt.Sprintf("%s USING(blc_id)", blockchainsTable)).
-		ToSql()
+		LeftJoin(fmt.Sprintf("%s USING(blc_id)", blockchainsTable))
+	if isAlive != nil {
+		q = q.Where("prs_is_alive = ?", *isAlive)
+	}
+	if isMainNet != nil {
+		q = q.Where("prs_is_main_net = ?", *isMainNet)
+	}
+	if isRpc != nil {
+		q = q.Where("prs_is_rpc = ?", *isRpc)
+	}
+	if blockchainID != nil {
+		q = q.Where("blc_id = ?", *blockchainID)
+	}
+
+	query, args, err := q.ToSql()
 	if err != nil {
 		return res, err
 	}
@@ -234,10 +267,10 @@ func (p *PgStorage) GetExistentPeers(blockchainID int, ips []net.IP) (res map[st
 
 func (p *PgStorage) GetStats() (res models.Stat, err error) {
 	q := `SELECT COUNT(*)                                                   					AS total,
-		   SUM(CASE WHEN prs_is_alive IS true THEN 1 ELSE 0 END)     							AS alive,
-		   SUM(CASE WHEN prs_is_rpc IS true THEN 1 ELSE 0 END)       							AS rpc,
-		   SUM(CASE WHEN prs_is_alive IS true AND prs_is_validator IS true THEN 1 ELSE 0 END) 	AS validator
-		FROM peers WHERE prs_is_main_net IS TRUE`
+		   SUM(CASE WHEN prs_is_alive IS TRUE THEN 1 ELSE 0 END)     							AS alive,
+		   SUM(CASE WHEN prs_is_rpc IS TRUE THEN 1 ELSE 0 END)       							AS rpc,
+		   SUM(CASE WHEN prs_is_alive IS TRUE AND prs_is_validator IS true THEN 1 ELSE 0 END) 	AS validator
+		FROM peers WHERE prs_is_main_net IS TRUE AND prs_is_outdated IS FALSE`
 
 	_, err = p.db.QueryOne(&res, q)
 	if err != nil {

@@ -276,7 +276,7 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 	}
 	isRpc := true
 
-	endpoints, err := a.storage.GetEndpoints(blockchainID, maxLimit, &isRpc, nil, nil, nil, nil)
+	endpoints, err := a.storage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetEndpoints: %s", err)
 	}
