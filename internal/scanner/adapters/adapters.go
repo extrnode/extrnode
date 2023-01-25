@@ -6,4 +6,5 @@ type Adapter interface {
 	Scan(peer storage.PeerWithIpAndBlockchain) error
 	GetNewNodes(peer storage.PeerWithIpAndBlockchain) error
 	BeforeRun() error
+	CheckOutdatedNodes() error
 }
