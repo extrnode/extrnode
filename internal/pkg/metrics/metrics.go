@@ -31,6 +31,7 @@ var (
 		bytesReadTotal         *prometheus.Metric
 		httpResponsesTotal     *prometheus.Metric
 		rpcError               *prometheus.Metric
+		availableEndpoints     *prometheus.Metric
 	}
 
 	metricList []*prometheus.Metric
@@ -92,6 +93,12 @@ func init() {
 		Type:        counterVecMetricType,
 		Args:        []string{rpcErrCodeMetricArg, httpCodeMetricArg, methodMetricArg, serverMetricArg},
 	})
+	initMetric(&metrics.availableEndpoints, &prometheus.Metric{
+		ID:          "availableEndpoints",
+		Name:        "available_endpoints",
+		Description: "amount of available endpoints (without partners)",
+		Type:        gaugeMetricType,
+	})
 }
 
 func initMetric(dest **prometheus.Metric, metric *prometheus.Metric) {
@@ -138,4 +145,8 @@ func IncHttpResponsesTotalCnt(httpCode, method, server string) {
 func IncRpcErrorCnt(rpcErrCode, httpCode, method, server string) {
 	l := prom.Labels{rpcErrCodeMetricArg: rpcErrCode, httpCodeMetricArg: httpCode, methodMetricArg: method, serverMetricArg: server}
 	metrics.rpcError.MetricCollector.(*prom.CounterVec).With(l).Inc()
+}
+
+func ObserveAvailableEndpoints(amount int) {
+	metrics.availableEndpoints.MetricCollector.(prom.Gauge).Set(float64(amount))
 }

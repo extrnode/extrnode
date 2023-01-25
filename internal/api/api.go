@@ -317,6 +317,7 @@ func (a *api) updateProxyEndpoints(transport *proxy.ProxyTransport) {
 		}
 
 		transport.UpdateTargets(urls)
+		metrics.ObserveAvailableEndpoints(len(urls))
 
 		time.Sleep(endpointsReloadInterval)
 	}
