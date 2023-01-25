@@ -46,6 +46,7 @@ type api struct {
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
 	apiPrivateKey          solana.PrivateKey
+	failoverTargets        config.FailoverTargets
 }
 
 const (
@@ -99,8 +100,9 @@ func NewAPI(cfg config.Config) (*api, error) {
 			csvOutputFormat:     {},
 			haproxyOutputFormat: {},
 		},
-		blockchainIDs: blockchainsMap,
-		apiPrivateKey: privKey,
+		blockchainIDs:   blockchainsMap,
+		apiPrivateKey:   privKey,
+		failoverTargets: cfg.API.FailoverEndpoints,
 	}
 
 	if cfg.API.CertFile != "" {
@@ -112,9 +114,8 @@ func NewAPI(cfg config.Config) (*api, error) {
 
 	a.setupServer()
 
-	a.initApiHandlers()
-
-	return a, nil
+	err = a.initApiHandlers()
+	return a, err
 }
 
 func (a *api) setupServer() {
@@ -151,7 +152,7 @@ func (a *api) initMetrics() {
 	metrics.InitStartTime()
 }
 
-func (a *api) initApiHandlers() {
+func (a *api) initApiHandlers() error {
 	a.router.Use(middleware.Recover())
 	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		ErrorMessage: "Request Timeout",
@@ -171,7 +172,11 @@ func (a *api) initApiHandlers() {
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
 
-	transport := proxy.NewProxyTransport(false)
+	transport, err := proxy.NewProxyTransport(false, a.failoverTargets)
+	if err != nil {
+		return err
+	}
+
 	go a.updateProxyEndpoints(transport)
 
 	const (
@@ -221,6 +226,8 @@ func (a *api) initApiHandlers() {
 
 	// api docs
 	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
+
+	return nil
 }
 
 func (a *api) Run() (err error) {

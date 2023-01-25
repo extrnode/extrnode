@@ -27,6 +27,7 @@ distribution.yml
 /.history
 
 .secrets
+.vscode
 mock_*
 .env
 *.pem

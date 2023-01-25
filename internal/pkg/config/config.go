@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/joho/godotenv"
@@ -19,9 +20,10 @@ type ScannerConfig struct {
 }
 
 type ApiConfig struct {
-	Port        uint64 `required:"true" split_words:"true"`
-	MetricsPort uint64 `required:"false" split_words:"true"`
-	CertFile    string `required:"false" split_words:"true"`
+	Port              uint64          `required:"true" split_words:"true"`
+	MetricsPort       uint64          `required:"false" split_words:"true"`
+	CertFile          string          `required:"false" split_words:"true"`
+	FailoverEndpoints FailoverTargets `required:"false" split_words:"true"`
 }
 
 type PostgresConfig struct {
@@ -33,9 +35,20 @@ type PostgresConfig struct {
 	MigrationsPath string `required:"true" split_words:"true"`
 }
 
-type MetricsConfig struct {
-	IsEnabled bool `required:"true" split_words:"true"`
-	Port      int  `required:"true" split_words:"true"`
+// AddTarget adds an upstream target to the list.
+type (
+	FailoverTargets []struct {
+		Url            string
+		ReqLimitHourly uint64
+	}
+)
+
+func (f *FailoverTargets) Decode(value string) error {
+	if len(value) == 0 {
+		return nil
+	}
+
+	return json.Unmarshal([]byte(value), &f)
 }
 
 func LoadFile(envFile string) (c Config, err error) {

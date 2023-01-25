@@ -106,7 +106,6 @@ func NewErrorHandler(config ProxyContextConfig) errorHandler {
 
 func (eh *errorHandler) WithContext(c echo.Context) func(http.ResponseWriter, *http.Request, error) {
 	return func(_ http.ResponseWriter, _ *http.Request, err error) {
-		endpoint, _ := c.Get(eh.config.ProxyEndpointContextKey).(string)
 		// If the client canceled the request (usually by closing the connection), we can report a
 		// client error (4xx) instead of a server error (5xx) to correctly identify the situation.
 		// The Go standard library (at of late 2020) wraps the exported, standard
@@ -119,7 +118,7 @@ func (eh *errorHandler) WithContext(c echo.Context) func(http.ResponseWriter, *h
 		} else if httErr, ok := err.(*echo.HTTPError); ok {
 			eh.err = httErr // return not changed err for user
 		} else {
-			httpError := echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("remote %s unreachable, could not forward: %v", endpoint, err))
+			httpError := echo.NewHTTPError(http.StatusBadGateway, err.Error())
 			httpError.Internal = err
 			eh.err = httpError
 		}
