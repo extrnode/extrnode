@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 func (c Config) validate() error {
 	if err := c.API.validate(); err != nil {
@@ -18,7 +21,12 @@ func (c Config) validate() error {
 
 func (a ApiConfig) validate() error {
 	if a.Port == 0 {
-		return fmt.Errorf("invalid port")
+		return errors.New("invalid port")
+	}
+	for _, h := range a.FailoverEndpoints {
+		if h.Url == "" {
+			return errors.New("invalid failover endpoints")
+		}
 	}
 
 	return nil

@@ -11,17 +11,23 @@ import (
 	"sync"
 	"time"
 
+	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 
 	"github.com/labstack/echo/v4"
 )
 
 type ProxyTransport struct {
-	i           int
 	maxAttempts int
 	transport   *http.Transport
-	targets     []*proxyTarget
 	withJail    bool
+
+	targets []*proxyTarget
+	i       int
+
+	failoverTargets []*proxyTarget
+	fi              int
+
 	sync.Mutex
 }
 
@@ -31,12 +37,16 @@ type proxyTransportWithContext struct {
 	config    ProxyContextConfig
 }
 
-const transportDialerTimeout = 2 * time.Second
-const targetJailTime = time.Second
-const consecutiveSucessResponses = 10
+const (
+	transportDialerTimeout     = 2 * time.Second
+	targetJailTime             = time.Second
+	consecutiveSucessResponses = 10
+	limitWindowSeconds         = 10
+	secondsInHour              = 3600
+)
 
-func NewProxyTransport(withJail bool) *ProxyTransport {
-	return &ProxyTransport{
+func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*ProxyTransport, error) {
+	pt := &ProxyTransport{
 		transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -52,6 +62,18 @@ func NewProxyTransport(withJail bool) *ProxyTransport {
 		maxAttempts: 5,
 		withJail:    withJail,
 	}
+
+	for _, ft := range failoverTargets {
+		parsedUrl, err := url.Parse(ft.Url)
+		if err != nil {
+			return nil, fmt.Errorf("url.Parse: %s", err)
+		}
+
+		reqLimit := ft.ReqLimitHourly / (secondsInHour / limitWindowSeconds)
+		pt.failoverTargets = append(pt.failoverTargets, newProxyTarget(parsedUrl, reqLimit))
+	}
+
+	return pt, nil
 }
 
 func (pt *ProxyTransport) WithContext(c echo.Context, config ProxyContextConfig) *proxyTransportWithContext {
@@ -85,44 +107,46 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		}
 
 		// modify req url
-		req.URL.Scheme = target.url.Scheme
-		req.URL.Host = target.url.Host
+		req.URL = target.url
+		req.Host = target.url.Host
 
 		// refill body
 		req.Body = io.NopCloser(bytes.NewBuffer(clonedBody))
 		req.ContentLength = clonedContentLength
 
 		startTime = time.Now()
-		resp, err = ptc.transport.transport.RoundTrip(req)
-		if err != nil {
-			target.UpdateAvailability(true)
-
-			log.Logger.Proxy.Errorf("RoundTrip: %s", err)
-			continue
-		}
-
-		if resp.StatusCode >= 300 {
-			target.UpdateAvailability(true)
-
-			return resp, echo.NewHTTPError(resp.StatusCode)
-		}
-
-		analysisErr := ptc.getResponseError(resp)
-		if analysisErr != nil {
-			if analysisErr == ErrInvalidRequest {
-				target.UpdateAvailability(false)
-				ptc.c.Set(ptc.config.ProxyUserErrorContextKey, true)
-				break
+		mustContinue, isAvaiable := func() (bool, bool) {
+			resp, err = ptc.transport.transport.RoundTrip(req)
+			if err != nil {
+				log.Logger.Proxy.Errorf("RoundTrip: %s", err)
+				return true, false
 			}
 
-			log.Logger.Proxy.Errorf("responseError: %s", analysisErr)
+			if resp.StatusCode >= 300 {
+				return false, false
+			}
 
-			target.UpdateAvailability(true)
+			analysisErr := ptc.getResponseError(resp)
+			if analysisErr != nil {
+				if analysisErr == ErrInvalidRequest {
+					ptc.c.Set(ptc.config.ProxyUserErrorContextKey, true)
+					return false, true
+				}
+
+				log.Logger.Proxy.Errorf("responseError: %s", analysisErr)
+
+				return true, false
+			}
+
+			return false, true
+		}()
+
+		target.UpdateStats(isAvaiable)
+
+		if mustContinue {
 			continue
 		}
 
-		// success case
-		target.UpdateAvailability(false)
 		break
 	}
 
@@ -144,14 +168,30 @@ func (pt *ProxyTransport) getNextTarget() *proxyTarget {
 	return t
 }
 
-func (pt *ProxyTransport) NextAvailableTarget() (*proxyTarget, error) {
-	if !pt.withJail {
-		return pt.getNextTarget(), nil
-	}
+// Next returns an upstream target using round-robin technique.
+func (pt *ProxyTransport) getNextFailoverTarget() *proxyTarget {
+	pt.Lock()
+	defer pt.Unlock()
 
+	pt.fi = pt.fi % len(pt.failoverTargets)
+	t := pt.failoverTargets[pt.fi]
+	pt.fi++
+	return t
+}
+
+func (pt *ProxyTransport) NextAvailableTarget() (*proxyTarget, error) {
 	for i := 0; i < len(pt.targets); i++ {
 		target := pt.getNextTarget()
-		if !target.isAvailable() {
+		if !target.isAvailable(pt.withJail) {
+			continue
+		}
+
+		return target, nil
+	}
+
+	for i := 0; i < len(pt.failoverTargets); i++ {
+		target := pt.getNextFailoverTarget()
+		if !target.isAvailable(pt.withJail) {
 			continue
 		}
 
@@ -170,9 +210,7 @@ func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 	}
 
 	pt.Lock()
-	pt.targets = append(pt.targets, &proxyTarget{
-		url: url,
-	})
+	pt.targets = append(pt.targets, newProxyTarget(url, 0))
 	pt.Unlock()
 
 	log.Logger.Proxy.Debugf("Transport added target: %s", url.String())
@@ -196,23 +234,42 @@ func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 }
 
 type proxyTarget struct {
-	url            *url.URL
+	url      *url.URL
+	reqLimit uint64
+
+	errCounter     uint64
+	successCounter uint64
+	reqCounter     uint64
+
 	jailExpireTime int64
-	errCounter     int
-	successCounter int
+	reqWindow      int64
+
 	sync.Mutex
 }
 
+func newProxyTarget(url *url.URL, reqLimit uint64) *proxyTarget {
+	return &proxyTarget{
+		url:      url,
+		reqLimit: reqLimit,
+	}
+}
+
 // RemoveTarget removes an upstream target from the list.
-func (t *proxyTarget) UpdateAvailability(isNodeErr bool) {
+func (t *proxyTarget) UpdateStats(success bool) {
 	t.Lock()
 	defer t.Unlock()
 
-	if !t.isAvailable() {
-		return
+	// truncate req counter by window
+	currentWindow := getCurrentTimeWindow()
+	if currentWindow > t.reqWindow {
+		t.reqWindow = currentWindow
+		t.reqCounter = 0
 	}
 
-	if isNodeErr {
+	// increment req counter
+	t.reqCounter++
+
+	if !success {
 		t.successCounter = 0
 		t.errCounter++
 		t.jailExpireTime = time.Now().Add(targetJailTime * time.Duration(t.errCounter)).Unix()
@@ -224,8 +281,19 @@ func (t *proxyTarget) UpdateAvailability(isNodeErr bool) {
 	}
 }
 
-func (t *proxyTarget) isAvailable() bool {
-	return time.Now().Unix() > t.jailExpireTime
+func (t *proxyTarget) isAvailable(withJail bool) bool {
+	// check jail time
+	if withJail && t.jailExpireTime > time.Now().Unix() {
+		return false
+	}
+
+	// check req limit
+	currentWindow := getCurrentTimeWindow()
+	if t.reqLimit > 0 && currentWindow == t.reqWindow && t.reqCounter >= t.reqLimit {
+		return false
+	}
+
+	return true
 }
 
 // AddTarget adds an upstream target to the list.
@@ -248,4 +316,8 @@ func (pt *ProxyTransport) UpdateTargets(urls []*url.URL) {
 	for _, u := range urls {
 		pt.AddTarget(u)
 	}
+}
+
+func getCurrentTimeWindow() int64 {
+	return time.Now().Truncate(time.Second * limitWindowSeconds).Unix()
 }

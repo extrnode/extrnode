@@ -53,6 +53,8 @@ API_PORT=8000
 API_METRICS_PORT=9099
 # path to certs for https (optional)
 API_CERT_FILE=certs/api.pem
+# failover endpoints for proxy. Json encoded object array (optional)
+API_FAILOVER_ENDPOINTS=[{"url":"http://127.0.0.1:8001","reqLimitHourly":1},{"url":"http://127.0.0.1","reqLimitHourly":2}]
 
 # database connection properties
 PG_HOST=localhost
