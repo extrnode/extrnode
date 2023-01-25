@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"extrnode-be/internal/pkg/log"
 	"fmt"
 	"io"
 	"net"
@@ -12,7 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
+	"extrnode-be/internal/pkg/log"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -79,7 +79,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		default:
 		}
 
-		target, err := ptc.transport.NextAvailableTarget()
+		target, err = ptc.transport.NextAvailableTarget()
 		if err != nil {
 			return nil, err
 		}
@@ -94,32 +94,35 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 
 		startTime = time.Now()
 		resp, err = ptc.transport.transport.RoundTrip(req)
+		if err != nil {
+			target.UpdateAvailability(true)
 
-		// TODO: check if this user error or node error, in case of user do not ban the node
-		// and do not forward to next node
-		isNodeError := err != nil
-		target.UpdateAvailability(isNodeError)
-		if isNodeError {
+			log.Logger.Proxy.Errorf("RoundTrip: %s", err)
 			continue
 		}
 
 		if resp.StatusCode >= 300 {
-			return resp, &jsonrpc.HTTPError{
-				Code: resp.StatusCode,
-			}
+			target.UpdateAvailability(true)
+
+			return resp, echo.NewHTTPError(resp.StatusCode)
 		}
 
-		analysisErr := getResponseError(resp)
+		analysisErr := ptc.getResponseError(resp)
 		if analysisErr != nil {
-			log.Logger.Api.Errorf("responseError: %s", err.Error())
-
 			if analysisErr == ErrInvalidRequest {
+				target.UpdateAvailability(false)
 				ptc.c.Set(ptc.config.ProxyUserErrorContextKey, true)
 				break
 			}
 
+			log.Logger.Proxy.Errorf("responseError: %s", analysisErr)
+
+			target.UpdateAvailability(true)
 			continue
 		}
+
+		// success case
+		target.UpdateAvailability(false)
 		break
 	}
 
@@ -172,7 +175,7 @@ func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 	})
 	pt.Unlock()
 
-	log.Logger.Api.Debugf("Transport added target: %s", url.String())
+	log.Logger.Proxy.Debugf("Transport added target: %s", url.String())
 	return true
 }
 
@@ -184,7 +187,7 @@ func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 			pt.targets = append(pt.targets[:i], pt.targets[i+1:]...)
 			pt.Unlock()
 
-			log.Logger.Api.Debugf("Transport removed target: %s", url.String())
+			log.Logger.Proxy.Debugf("Transport removed target: %s", url.String())
 			return true
 		}
 	}
@@ -201,7 +204,7 @@ type proxyTarget struct {
 }
 
 // RemoveTarget removes an upstream target from the list.
-func (t *proxyTarget) UpdateAvailability(hasError bool) {
+func (t *proxyTarget) UpdateAvailability(isNodeErr bool) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -209,7 +212,7 @@ func (t *proxyTarget) UpdateAvailability(hasError bool) {
 		return
 	}
 
-	if hasError {
+	if isNodeErr {
 		t.successCounter = 0
 		t.errCounter++
 		t.jailExpireTime = time.Now().Add(targetJailTime * time.Duration(t.errCounter)).Unix()

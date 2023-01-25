@@ -28,7 +28,6 @@ func ScanAndInsertPorts(ctx context.Context, s storage.PgStorage, peer storage.P
 		if err != nil {
 			return fmt.Errorf("GetOrCreatePeer: %s; blcId %d ipId %d port %d", err, peer.BlockchainID, peer.IpID, port)
 		}
-
 	}
 
 	return nil

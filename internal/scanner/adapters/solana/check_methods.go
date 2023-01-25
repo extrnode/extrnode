@@ -211,7 +211,7 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		blockhash, err = rpcClient.GetRecentBlockhash(a.ctx, rpc.CommitmentFinalized)
 		if err == nil {
 			var tx *solana.Transaction
-			tx, err = solana.NewTransaction(
+			tx, _ = solana.NewTransaction(
 				[]solana.Instruction{
 					system.NewTransferInstruction(
 						1,
