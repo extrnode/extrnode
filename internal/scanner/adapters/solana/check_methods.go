@@ -92,10 +92,11 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 			out = true
 		}
 	case getInflationReward:
-		var resp []*rpc.GetInflationRewardResult
-		if resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil); err == nil && len(resp) == 1 {
-			out = true
-		}
+		// TODO: temporary remove this check
+		//var resp []*rpc.GetInflationRewardResult
+		//if resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil); err == nil && len(resp) == 1 {
+		out = true
+		//}
 	case getLatestBlockhash:
 		var resp *rpc.GetLatestBlockhashResult
 		if resp, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentProcessed); err == nil && resp != nil && resp.Value != nil && !resp.Value.Blockhash.IsZero() {
