@@ -13,8 +13,6 @@ type (
 		BlockchainID int    `pg:"blc_id"` // Blockchain
 		Name         string `pg:"mtd_name"`
 	}
-
-	RpcMethodsMap map[string]int
 )
 
 const rpcMethodsTable = "rpc.methods"
@@ -64,7 +62,7 @@ func (p *PgStorage) GetOrCreateRpcMethod(blockchainID int, name string) (id int,
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetRpcMethodsMapByBlockchainID(blockchainID int) (res RpcMethodsMap, err error) {
+func (p *PgStorage) GetRpcMethodsMapByBlockchainID(blockchainID int) (res map[string]int, err error) {
 	if blockchainID == 0 {
 		return nil, fmt.Errorf("empty blockchainID")
 	}
@@ -82,7 +80,7 @@ func (p *PgStorage) GetRpcMethodsMapByBlockchainID(blockchainID int) (res RpcMet
 	if err != nil {
 		return res, err
 	}
-	res = make(RpcMethodsMap, len(methods))
+	res = make(map[string]int, len(methods))
 	for _, m := range methods {
 		res[m.Name] = m.ID
 	}

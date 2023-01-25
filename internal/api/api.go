@@ -112,10 +112,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 
 	a.setupServer()
 
-	err = a.initApiHandlers()
-	if err != nil {
-		return nil, fmt.Errorf("initApiHandlers: %s", err)
-	}
+	a.initApiHandlers()
 
 	return a, nil
 }
@@ -154,7 +151,7 @@ func (a *api) initMetrics() {
 	metrics.InitStartTime()
 }
 
-func (a *api) initApiHandlers() error {
+func (a *api) initApiHandlers() {
 	a.router.Use(middleware.Recover())
 	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		ErrorMessage: "Request Timeout",
@@ -178,10 +175,10 @@ func (a *api) initApiHandlers() error {
 	go a.updateProxyEndpoints(transport)
 
 	const (
-		reqMethodContextKey         = "req_method"
+		reqMethodContextKey         = "req_method" // array
 		reqBodyContextKey           = "req_body"
 		resBodyContextKey           = "res_body"
-		rpcErrorContextKey          = "res_err"
+		rpcErrorContextKey          = "res_err" // array
 		proxyEndpointContextKey     = "proxy_host"
 		proxyAttemptsContextKey     = "proxy_attempts"
 		proxyResponseTimeContextKey = "proxy_time"
@@ -208,24 +205,22 @@ func (a *api) initApiHandlers() error {
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
 			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
 		}),
-		middlewares.NewBodyDumpMiddleware(middlewares.BodyDumpContextConfig{
+		middlewares.NewValidatorMiddleware(middlewares.ValidatorContextConfig{
 			ReqMethodContextKey: reqMethodContextKey,
 			ReqBodyContextKey:   reqBodyContextKey,
-			ResBodyContextKey:   resBodyContextKey,
-			RpcErrorContextKey:  rpcErrorContextKey,
 		}),
 		proxy.NewProxyMiddleware(transport, proxy.ProxyContextConfig{
 			ProxyEndpointContextKey:     proxyEndpointContextKey,
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
 			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
+			ResBodyContextKey:           resBodyContextKey,
+			RpcErrorContextKey:          rpcErrorContextKey,
 		}),
 	)
 
 	// api docs
 	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
-
-	return nil
 }
 
 func (a *api) Run() (err error) {
@@ -290,7 +285,7 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 		return endpoints[i].SupportedMethods.AverageResponseTime() < endpoints[j].SupportedMethods.AverageResponseTime()
 	})
 
-	var urls []*url.URL
+	urls := make([]*url.URL, 0, len(endpoints))
 	for _, e := range endpoints {
 		schema := "http://"
 		if e.IsSsl {

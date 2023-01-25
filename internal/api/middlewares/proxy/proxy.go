@@ -16,6 +16,8 @@ type ProxyContextConfig struct {
 	ProxyAttemptsContextKey     string
 	ProxyResponseTimeContextKey string // in ms. type int64
 	ProxyUserErrorContextKey    string
+	ResBodyContextKey           string
+	RpcErrorContextKey          string // array
 }
 
 func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) echo.MiddlewareFunc {
@@ -114,6 +116,8 @@ func (eh *errorHandler) WithContext(c echo.Context) func(http.ResponseWriter, *h
 			httpError := echo.NewHTTPError(StatusCodeContextCanceled, fmt.Sprintf("client closed connection: %v", err))
 			httpError.Internal = err
 			eh.err = httpError
+		} else if httErr, ok := err.(*echo.HTTPError); ok {
+			eh.err = httErr // return not changed err for user
 		} else {
 			httpError := echo.NewHTTPError(http.StatusBadGateway, fmt.Sprintf("remote %s unreachable, could not forward: %v", endpoint, err))
 			httpError.Internal = err

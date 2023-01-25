@@ -76,7 +76,7 @@ func createNodeUrl(p storage.PeerWithIpAndBlockchain, isSSL bool) string {
 
 func reformatSolanaRpcError(err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 	rpcErr, ok := err.(*jsonrpc.RPCError)
 	if !ok {

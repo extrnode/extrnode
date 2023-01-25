@@ -12,7 +12,6 @@ type Config struct {
 	Scanner ScannerConfig
 	API     ApiConfig
 	PG      PostgresConfig
-	//Metrics  MetricsConfig
 }
 
 type ScannerConfig struct {

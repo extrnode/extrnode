@@ -16,6 +16,7 @@ require (
 	github.com/klauspost/compress v1.13.6
 	github.com/labstack/echo-contrib v0.13.0
 	github.com/labstack/echo/v4 v4.10.0
+	github.com/labstack/gommon v0.4.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.14.0
 	github.com/sirupsen/logrus v1.9.0
@@ -42,7 +43,6 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
