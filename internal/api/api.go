@@ -145,7 +145,7 @@ func (a *api) initMetrics() {
 		},
 	}))
 
-	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
+	prom := prometheus.NewPrometheus("", nil, metrics.MetricList())
 	// Scrape metrics from Main Server
 	a.metricsServer.Use(prom.HandlerFunc)
 	// Setup metrics endpoint at another server
