@@ -37,7 +37,11 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 			}
 			clFloat, _ := strconv.ParseFloat(cl, 64)
 
-			httpStatusString := fmt.Sprintf("%d", c.Response().Status)
+			httpStatus := c.Response().Status
+			if httpErr, ok := err.(*echo.HTTPError); ok {
+				httpStatus = httpErr.Code
+			}
+			httpStatusString := fmt.Sprintf("%d", httpStatus)
 
 			var rpcMethod string
 			if len(rpcMethods) > 1 {
