@@ -103,7 +103,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 
 		target, err = ptc.transport.NextAvailableTarget()
 		if err != nil {
-			return nil, err
+			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, err.Error()) // need text from err
 		}
 
 		// modify req url
@@ -115,7 +115,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		req.ContentLength = clonedContentLength
 
 		startTime = time.Now()
-		mustContinue, isAvaiable := func() (bool, bool) {
+		mustContinue, isAvailable := func() (bool, bool) {
 			resp, err = ptc.transport.transport.RoundTrip(req)
 			if err != nil {
 				log.Logger.Proxy.Errorf("RoundTrip: %s", err)
@@ -141,7 +141,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 			return false, true
 		}()
 
-		target.UpdateStats(isAvaiable)
+		target.UpdateStats(isAvailable)
 
 		if mustContinue {
 			continue

@@ -103,7 +103,8 @@ func (s *scanner) getAdapter(task scannerTask) (adapter adapters.Adapter, ok boo
 }
 
 func (s *scanner) runScanner(ctx context.Context) {
-	var err error
+	var isIdle bool
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,7 +119,7 @@ func (s *scanner) runScanner(ctx context.Context) {
 				continue
 			}
 
-			err = adapter.GetNewNodes(task.peer)
+			err := adapter.GetNewNodes(task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("GetNewNodes (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 				// continue not needed
@@ -128,13 +129,19 @@ func (s *scanner) runScanner(ctx context.Context) {
 			if err != nil {
 				log.Logger.Scanner.Errorf("Scan (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
+
+		case <-time.After(time.Minute):
+			if !isIdle {
+				log.Logger.Scanner.Debug("scanner: no more tasks")
+				isIdle = true
+			}
 		}
 	}
 }
 
 func (s *scanner) runNmap(ctx context.Context) {
-	var err error
 	var isIdle bool
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -143,14 +150,14 @@ func (s *scanner) runNmap(ctx context.Context) {
 
 		case task := <-s.nmapTaskQueue:
 			isIdle = false
-			err = nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
+			err := nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("NmapCheck (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
 
 		case <-time.After(time.Minute):
 			if !isIdle {
-				log.Logger.Scanner.Debug("No more tasks")
+				log.Logger.Scanner.Debug("nmap: no more tasks")
 				isIdle = true
 			}
 		}

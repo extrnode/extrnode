@@ -9,6 +9,8 @@ import (
 	"net/http"
 
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
+
+	"extrnode-be/internal/api/middlewares"
 )
 
 var ErrInvalidRequest = errors.New("invalid request")
@@ -47,7 +49,6 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 
 	httpResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 	decoder := json.NewDecoder(bytes.NewBuffer(body))
-	decoder.DisallowUnknownFields()
 	decoder.UseNumber()
 
 	// trim after cloning
@@ -58,6 +59,8 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 	}
 	// save truncated body to context before handling it. Used in logger
 	ptc.c.Set(ptc.config.ResBodyContextKey, body)
+	// clean possible old value
+	ptc.c.Set(ptc.config.RpcErrorContextKey, nil)
 
 	if len(body) == 0 {
 		return append(errs, errors.New("empty body"))
@@ -66,7 +69,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 	var errCodes []int
 	switch fs := body[0]; {
 	case fs == '{':
-		var rpcResponse jsonrpc.RPCResponse
+		var rpcResponse middlewares.RPCResponse
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
 			return append(errs, fmt.Errorf("error while parsing response: %s", err))
@@ -83,7 +86,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 			errs = append(errs, rpcResponse.Error)
 		}
 	case fs == '[':
-		var rpcResponse jsonrpc.RPCResponses
+		var rpcResponse middlewares.RPCResponses
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
 			return append(errs, fmt.Errorf("error while parsing response: %s", err))
@@ -120,11 +123,11 @@ func rpcErrorAnalysis(errs []error) error {
 		return nil
 	}
 
-	var joinedErr error
+	var joinedErr string
 	for _, err := range errs {
 		rpcErr, ok := err.(*jsonrpc.RPCError)
 		if !ok {
-			joinedErr = fmt.Errorf("%s; %s", joinedErr, err)
+			joinedErr = fmt.Sprintf("%s%s; ", joinedErr, err.Error())
 			continue
 		}
 
@@ -135,12 +138,12 @@ func rpcErrorAnalysis(errs []error) error {
 			InvalidParamsErrCode:
 			return ErrInvalidRequest
 		default:
-			joinedErr = fmt.Errorf("%s; %s", joinedErr, err)
+			joinedErr = fmt.Sprintf("%srpcErr: code %d %s; ", joinedErr, rpcErr.Code, rpcErr.Message)
 			continue
 		}
 	}
 
-	return joinedErr
+	return errors.New(joinedErr)
 }
 
 func (ptc *proxyTransportWithContext) getResponseError(httpResponse *http.Response) error {
