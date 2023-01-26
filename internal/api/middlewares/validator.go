@@ -168,6 +168,7 @@ var fullMethodList = map[string]struct{}{
 	"getConfirmedBlocks":                {},
 	"getConfirmedBlocksWithLimit":       {},
 	"getConfirmedSignaturesForAddress2": {},
+	"getConfirmedTransaction":           {},
 	"getFeeCalculatorForBlockhash":      {},
 	"getFeeRateGovernor":                {},
 	"getFees":                           {},
