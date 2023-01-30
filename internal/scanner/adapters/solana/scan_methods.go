@@ -75,7 +75,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 		responseValid, responseTime, statusCode, err := a.checkRpcMethod(TopRpcMethod(mName), rpcClient)
 		if err != nil || !responseValid { // responseValid always == false when err != nil
 			if err != nil {
-				log.Logger.Scanner.Errorf("checkRpcMethod %s %s: %s", mName, fmt.Sprintf("%s:%d", peer.Address, peer.Port), err)
+				log.Logger.Scanner.Errorf("checkRpcMethod %s %s:%d: %s", mName, peer.Address, peer.Port, err)
 			}
 			isRpc = false
 			err = a.storage.DeleteRpcPeerMethod(peer.ID, &mID)

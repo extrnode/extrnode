@@ -153,7 +153,10 @@ func (a *api) initMetrics() {
 }
 
 func (a *api) initApiHandlers() error {
-	a.router.Use(middleware.Recover())
+	a.router.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{
+		DisableStackAll: true,
+		LogErrorFunc:    logPanic,
+	}))
 	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		ErrorMessage: "Request Timeout",
 		Timeout:      apiWriteTimeout,

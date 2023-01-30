@@ -123,7 +123,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 			}
 
 			if resp.StatusCode >= 300 {
-				return false, false
+				return true, false
 			}
 
 			analysisErr := ptc.getResponseError(resp)

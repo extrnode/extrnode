@@ -103,7 +103,7 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		//var resp []*rpc.GetInflationRewardResult
 		//resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil)
 		//if err == nil && len(resp) == 1 {
-			out = true
+		out = true
 		//}
 	case getLatestBlockhash:
 		var resp *rpc.GetLatestBlockhashResult
@@ -254,6 +254,9 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 			code = http.StatusInternalServerError
 		} else if parseErr, ok := err.(*jsonrpc.HTTPError); ok {
 			code = parseErr.Code
+			if code == http.StatusTooManyRequests {
+				err = nil // usually contains multiple line html
+			}
 		} else if strings.Contains(err.Error(), "Client.Timeout") || strings.Contains(err.Error(), "connection refused") ||
 			strings.Contains(err.Error(), "context deadline exceeded") || strings.Contains(err.Error(), "use of closed network connection") {
 			code = http.StatusRequestTimeout

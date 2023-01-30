@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
@@ -136,11 +137,16 @@ func rpcErrorAnalysis(errs []error) error {
 			TransactionPrecompileVerificationFailureErrCode, TransactionSignatureLenMismatchErrCode,
 			UnsupportedTransactionVersionErrCode, ParseErrCode, InvalidRequestErrCode,
 			InvalidParamsErrCode:
+			if rpcErr.Code == InvalidParamsErrCode &&
+				(strings.Contains(rpcErr.Message, "BigTable query failed (maybe timeout due to too large range") ||
+					strings.Contains(rpcErr.Message, "blockstore error")) {
+				break
+			}
+
 			return ErrInvalidRequest
-		default:
-			joinedErr = fmt.Sprintf("%srpcErr: code %d %s; ", joinedErr, rpcErr.Code, rpcErr.Message)
-			continue
 		}
+
+		joinedErr = fmt.Sprintf("%srpcErr: code %d %s; ", joinedErr, rpcErr.Code, rpcErr.Message)
 	}
 
 	return errors.New(joinedErr)
