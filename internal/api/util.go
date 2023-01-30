@@ -1,10 +1,13 @@
 package api
 
 import (
-	"extrnode-be/internal/models"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
+
+	"extrnode-be/internal/models"
+	"extrnode-be/internal/pkg/log"
 
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo/v4"
@@ -48,4 +51,9 @@ func (a *api) getStats() (res models.Stat, err error) {
 	a.cache.Set(statsCacheKey, res, shortTermCache)
 
 	return res, nil
+}
+
+func logPanic(c echo.Context, err error, stack []byte) error {
+	log.Logger.Proxy.Errorf("PANIC RECOVER: %s %s", err, strconv.Quote(string(stack)))
+	return nil
 }
