@@ -48,8 +48,11 @@ var (
 	solanaProgramOwner = solana.MustPublicKeyFromBase58("NativeLoader1111111111111111111111111111111")
 	testKey2           = solana.MustPublicKeyFromBase58("EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks")
 	testKey3           = solana.MustPublicKeyFromBase58("9qGSDWfWn5a7JkvPbuwvkSohMz4VDH6ck7BRJxZFTMbQ")
+	testKey4           = solana.MustPublicKeyFromBase58("Vote111111111111111111111111111111111111111")
 	testMint           = solana.MustPublicKeyFromBase58("Hg35Vd8K3BS2pLB3xwC2WqQV8pmpCm3oNRGYP1PEpmCM")
 	testTokenAccount   = solana.MustPublicKeyFromBase58("7rEjmuTevAyiY7iUDWT6ucBNHXT2XqjcfQqKvshYrVsh")
+
+	limit = 1
 )
 
 func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client) (out bool, responseTime time.Duration, code int, err error) {
@@ -138,7 +141,7 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		}
 	case getSignaturesForAddress:
 		var resp []*rpc.TransactionSignature
-		resp, err = rpcClient.GetSignaturesForAddress(a.ctx, testKey2)
+		resp, err = rpcClient.GetSignaturesForAddressWithOpts(a.ctx, testKey4, &rpc.GetSignaturesForAddressOpts{Limit: &limit})
 		if err == nil && len(resp) > 0 {
 			out = true
 		}
