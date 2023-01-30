@@ -108,7 +108,7 @@ func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 	}
 }
 
-var fullMethodList = map[string]struct{}{
+var FullMethodList = map[string]struct{}{
 	"getAccountInfo":                    {},
 	"getBalance":                        {},
 	"getBlock":                          {},
@@ -180,7 +180,7 @@ func checkJsonRpcBody(req RPCRequest) error {
 	if req.JSONRPC != jsonrpcVersion {
 		return errors.New("invalid version")
 	}
-	_, ok := fullMethodList[req.Method]
+	_, ok := FullMethodList[req.Method]
 	if !ok {
 		// return understandable error for user
 		return fmt.Errorf("invalid method: %s", req.Method)
