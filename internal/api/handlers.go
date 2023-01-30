@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/models"
 	"extrnode-be/internal/pkg/log"
 )
@@ -97,6 +98,11 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 		supportedMethods = strings.Split(paramString, ",")
 		if len(supportedMethods) > arrMaxLen {
 			return echo.NewHTTPError(http.StatusBadRequest, "supported_method length")
+		}
+		for _, method := range supportedMethods {
+			if _, ok := middlewares.FullMethodList[method]; !ok {
+				return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unknown method: %s", method))
+			}
 		}
 	}
 
