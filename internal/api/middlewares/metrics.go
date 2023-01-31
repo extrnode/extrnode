@@ -3,6 +3,7 @@ package middlewares
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -16,6 +17,8 @@ type MetricsContextConfig struct {
 	ProxyAttemptsContextKey     string
 	ProxyResponseTimeContextKey string
 	ProxyUserErrorContextKey    string
+	ProxyHasErrorContextKey     string
+	ReqDurationContextKey       string
 }
 
 const multipleValuesRequested = "multiple_values"
@@ -25,12 +28,14 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			err := next(c)
 
+			reqDuration, _ := c.Get(config.ReqDurationContextKey).(time.Time)
 			rpcMethods, _ := c.Get(config.ReqMethodContextKey).([]string)
 			rpcErrorCodes, _ := c.Get(config.RpcErrorContextKey).([]int)
 			endpoint, _ := c.Get(config.ProxyEndpointContextKey).(string)
 			attempts, _ := c.Get(config.ProxyAttemptsContextKey).(int)
 			nodeResponseTime, _ := c.Get(config.ProxyResponseTimeContextKey).(int64)
-			userError := c.Get(config.ProxyUserErrorContextKey)
+			hasError, _ := c.Get(config.ProxyHasErrorContextKey).(bool)
+			userError, _ := c.Get(config.ProxyUserErrorContextKey).(bool)
 			cl := c.Request().Header.Get(echo.HeaderContentLength)
 			if cl == "" {
 				cl = "0"
@@ -61,11 +66,13 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 			if len(rpcErrorCodes) != 0 {
 				metrics.IncRpcErrorCnt(rpcErrorCodesString, httpStatusString, rpcMethod, endpoint)
 			}
-			metrics.ObserveNodeAttemptsPerRequest(rpcMethod, endpoint, attempts)
+			metrics.ObserveNodeAttempts(rpcMethod, endpoint, attempts, !hasError || userError)
 			metrics.ObserveNodeResponseTime(rpcMethod, endpoint, nodeResponseTime)
-			if userError == true {
+			if userError {
 				metrics.IncUserFailedRequestsCnt(rpcErrorCodesString, httpStatusString, rpcMethod, endpoint)
 			}
+
+			metrics.ObserveExecutionTime(httpStatusString, rpcMethod, endpoint, time.Since(reqDuration))
 
 			return err
 		}

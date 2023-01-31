@@ -153,6 +153,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 	ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.url.String())
 	ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
 	ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
+	ptc.c.Set(ptc.config.ProxyHasErrorContextKey, err != nil)
 
 	return resp, err
 }

@@ -16,6 +16,7 @@ type ProxyContextConfig struct {
 	ProxyAttemptsContextKey     string
 	ProxyResponseTimeContextKey string // in ms. type int64
 	ProxyUserErrorContextKey    string
+	ProxyHasErrorContextKey     string
 	ResBodyContextKey           string
 	RpcErrorContextKey          string // array
 }

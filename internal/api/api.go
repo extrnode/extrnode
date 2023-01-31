@@ -144,8 +144,6 @@ func (a *api) initMetrics() {
 	}))
 
 	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
-	// Scrape metrics from Main Server
-	a.metricsServer.Use(prom.HandlerFunc)
 	// Setup metrics endpoint at another server
 	prom.SetMetricsPath(a.metricsServer)
 
@@ -191,10 +189,13 @@ func (a *api) initApiHandlers() error {
 		proxyAttemptsContextKey     = "proxy_attempts"
 		proxyResponseTimeContextKey = "proxy_time"
 		proxyUserErrorContextKey    = "user_error"
+		proxyHasErrorContextKey     = "has_error"
+		reqDurationContextKey       = "req_duration"
 	)
 
 	// proxy
 	generalGroup.POST("/", nil,
+		middlewares.RequestDurationMiddleware(reqDurationContextKey),
 		middlewares.RequestIDMiddleware(),
 		middlewares.NewLoggerMiddleware(middlewares.LoggerContextConfig{
 			ReqMethodContextKey:         reqMethodContextKey,
@@ -212,6 +213,8 @@ func (a *api) initApiHandlers() error {
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
 			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
+			ProxyHasErrorContextKey:     proxyHasErrorContextKey,
+			ReqDurationContextKey:       reqDurationContextKey,
 		}),
 		middlewares.NewValidatorMiddleware(middlewares.ValidatorContextConfig{
 			ReqMethodContextKey: reqMethodContextKey,
@@ -222,6 +225,7 @@ func (a *api) initApiHandlers() error {
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
 			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
+			ProxyHasErrorContextKey:     proxyHasErrorContextKey,
 			ResBodyContextKey:           resBodyContextKey,
 			RpcErrorContextKey:          rpcErrorContextKey,
 		}),
