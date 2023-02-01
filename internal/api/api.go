@@ -228,6 +228,7 @@ func (a *api) initApiHandlers() error {
 			ProxyHasErrorContextKey:     proxyHasErrorContextKey,
 			ResBodyContextKey:           resBodyContextKey,
 			RpcErrorContextKey:          rpcErrorContextKey,
+			ReqMethodContextKey:         reqMethodContextKey,
 		}),
 	)
 

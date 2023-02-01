@@ -38,6 +38,8 @@ const (
 	MethodNotFoundErrCode                           = -32601
 	InvalidParamsErrCode                            = -32602
 	InternalErrorErrCode                            = -32603
+
+	jsonMsgNullString = "null"
 )
 
 const bodyLimit = 1000
@@ -67,6 +69,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 		return append(errs, errors.New("empty body"))
 	}
 
+	rpcMethods, _ := ptc.c.Get(ptc.config.ReqMethodContextKey).([]string)
 	var errCodes []int
 	switch fs := body[0]; {
 	case fs == '{':
@@ -80,11 +83,17 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 			errs = append(errs, fmt.Errorf("empty response body"))
 			break
 		}
+
 		if rpcResponse.Error != nil {
 			if rpcResponse.Error.Code != 0 {
 				errCodes = append(errCodes, rpcResponse.Error.Code)
 			}
 			errs = append(errs, rpcResponse.Error)
+			break
+		}
+
+		if string(rpcResponse.Result) == jsonMsgNullString && len(rpcMethods) == 1 && rpcMethods[0] == "getBlock" {
+			errs = append(errs, fmt.Errorf("empty response field"))
 		}
 	case fs == '[':
 		var rpcResponse middlewares.RPCResponses
@@ -93,7 +102,11 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 			return append(errs, fmt.Errorf("error while parsing response: %s", err))
 		}
 
-		for _, r := range rpcResponse {
+		for key, r := range rpcResponse {
+			if r == nil {
+				errs = append(errs, fmt.Errorf("empty response"))
+				continue
+			}
 			if r.JSONRPC == "" {
 				errs = append(errs, fmt.Errorf("empty response body"))
 				continue
@@ -103,6 +116,13 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 					errCodes = append(errCodes, r.Error.Code)
 				}
 				errs = append(errs, r.Error)
+				continue
+			}
+			if len(rpcMethods) != len(rpcResponse) {
+				continue
+			}
+			if string(r.Result) == jsonMsgNullString && rpcMethods[key] == "getBlock" {
+				errs = append(errs, fmt.Errorf("empty response field"))
 			}
 		}
 	default:

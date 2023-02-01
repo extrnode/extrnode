@@ -19,6 +19,7 @@ type ProxyContextConfig struct {
 	ProxyHasErrorContextKey     string
 	ResBodyContextKey           string
 	RpcErrorContextKey          string // array
+	ReqMethodContextKey         string
 }
 
 func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) echo.MiddlewareFunc {
