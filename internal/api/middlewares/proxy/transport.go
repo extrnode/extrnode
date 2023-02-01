@@ -55,7 +55,6 @@ func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*
 			}).DialContext,
 			ForceAttemptHTTP2:     true,
 			MaxIdleConns:          1,
-			IdleConnTimeout:       30 * time.Second,
 			TLSHandshakeTimeout:   3 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
@@ -97,7 +96,8 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 	for ; i < ptc.transport.maxAttempts; i++ {
 		select {
 		case <-req.Context().Done():
-			return nil, req.Context().Err()
+			err = req.Context().Err()
+			break
 		default:
 		}
 
@@ -150,9 +150,15 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		break
 	}
 
-	ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.url.String())
-	ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
-	ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
+	if target != nil {
+		ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.url.String())
+		ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
+	}
+
+	if !startTime.IsZero() {
+		ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
+	}
+
 	ptc.c.Set(ptc.config.ProxyHasErrorContextKey, err != nil)
 
 	return resp, err

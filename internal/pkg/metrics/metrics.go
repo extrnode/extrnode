@@ -96,7 +96,7 @@ func init() {
 		"node_response_time",
 		"the time it took to fetch data from node",
 		[]string{methodMetricArg, serverMetricArg},
-		[]float64{10, 50, 100, 200, 400, 600, 800, 1000, 1500, 2000, 4000, 6000},
+		[]float64{10, 50, 100, 200, 400, 600, 800, 1000, 1500, 2000, 4000, 6000, 8000, 10000, 15000, 20000, 25000, 30000},
 	))
 
 	initMetric(&metrics.nodeAttempts, newHistogram(
