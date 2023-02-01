@@ -167,7 +167,7 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 		q = q.Where(sq.Eq{"cnt_alpha2": asnCountries})
 	}
 	if len(supportedMethods) != 0 {
-		q = q.Where(sq.Eq{"rpc.methods.mtd_name": supportedMethods})
+		q = q.Having(ArrayContain{"rpc.methods.mtd_name": supportedMethods})
 	}
 	if len(versions) != 0 {
 		q = q.Where(LikeAny{"prs_version": versions})
