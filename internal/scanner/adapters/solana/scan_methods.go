@@ -69,7 +69,6 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 		return nil
 	}
 
-	var isAlive bool
 	isRpc := true
 	for mName, mID := range methods {
 		responseValid, responseTime, statusCode, err := a.checkRpcMethod(TopRpcMethod(mName), rpcClient)
@@ -83,7 +82,6 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 				return fmt.Errorf("DeleteRpcPeerMethod: %s", err)
 			}
 		} else {
-			isAlive = true
 			err = a.storage.UpsertRpcPeerMethod(peer.ID, mID, responseTime)
 			if err != nil {
 				return fmt.Errorf("UpsertRpcPeerMethod: %s", err)
@@ -97,7 +95,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 	}
 
 	// isMainNet == true because devnet is skipped
-	err = a.updatePeerInfo(peer, now, isAlive, isRpc, isSSL, true, isValidator, false, version)
+	err = a.updatePeerInfo(peer, now, true, isRpc, isSSL, true, isValidator, false, version)
 	if err != nil {
 		return fmt.Errorf("updatePeerInfo 3: %s", err)
 	}
