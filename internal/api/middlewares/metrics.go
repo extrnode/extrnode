@@ -1,8 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -30,23 +28,13 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 
 			reqDuration, _ := c.Get(config.ReqDurationContextKey).(time.Time)
 			rpcMethods, _ := c.Get(config.ReqMethodContextKey).([]string)
-			rpcErrorCodes, _ := c.Get(config.RpcErrorContextKey).([]int)
-			endpoint, _ := c.Get(config.ProxyEndpointContextKey).(string)
+			// rpcErrorCodes, _ := c.Get(config.RpcErrorContextKey).([]int)
+			// endpoint, _ := c.Get(config.ProxyEndpointContextKey).(string)
 			attempts, _ := c.Get(config.ProxyAttemptsContextKey).(int)
 			nodeResponseTime, _ := c.Get(config.ProxyResponseTimeContextKey).(int64)
 			hasError, _ := c.Get(config.ProxyHasErrorContextKey).(bool)
 			userError, _ := c.Get(config.ProxyUserErrorContextKey).(bool)
-			cl := c.Request().Header.Get(echo.HeaderContentLength)
-			if cl == "" {
-				cl = "0"
-			}
-			clFloat, _ := strconv.ParseFloat(cl, 64)
-
-			httpStatus := c.Response().Status
-			if httpErr, ok := err.(*echo.HTTPError); ok {
-				httpStatus = httpErr.Code
-			}
-			httpStatusString := fmt.Sprintf("%d", httpStatus)
+			// cl := c.Request().Header.Get(echo.HeaderContentLength)
 
 			var rpcMethod string
 			if len(rpcMethods) > 1 {
@@ -54,25 +42,13 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 			} else if len(rpcMethods) == 1 {
 				rpcMethod = rpcMethods[0]
 			}
-			var rpcErrorCodesString string
-			if len(rpcErrorCodes) > 1 {
-				rpcErrorCodesString = multipleValuesRequested
-			} else if len(rpcErrorCodes) == 1 {
-				rpcErrorCodesString = fmt.Sprintf("%d", rpcErrorCodes[0])
-			}
 
-			metrics.AddBytesReadTotalCnt(httpStatusString, rpcMethod, endpoint, clFloat)
-			metrics.IncHttpResponsesTotalCnt(httpStatusString, rpcMethod, endpoint)
-			if len(rpcErrorCodes) != 0 {
-				metrics.IncRpcErrorCnt(rpcErrorCodesString, httpStatusString, rpcMethod, endpoint)
-			}
-			metrics.ObserveNodeAttempts(rpcMethod, endpoint, attempts, !hasError || userError)
-			metrics.ObserveNodeResponseTime(rpcMethod, endpoint, nodeResponseTime)
-			if userError {
-				metrics.IncUserFailedRequestsCnt(rpcErrorCodesString, httpStatusString, rpcMethod, endpoint)
-			}
+			success := !hasError || userError
 
-			metrics.ObserveExecutionTime(httpStatusString, rpcMethod, endpoint, time.Since(reqDuration))
+			metrics.IncHttpResponsesTotalCnt(rpcMethod, success)
+			metrics.ObserveNodeAttempts(rpcMethod, success, attempts)
+			metrics.ObserveNodeResponseTime(rpcMethod, success, nodeResponseTime)
+			metrics.ObserveExecutionTime(rpcMethod, success, time.Since(reqDuration))
 
 			return err
 		}
