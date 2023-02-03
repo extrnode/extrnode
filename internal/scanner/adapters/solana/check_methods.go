@@ -38,6 +38,8 @@ const (
 	isBlockhashValid                               = "isBlockhashValid"
 	getTransactionCount                            = "getTransactionCount"
 	getTokenAccountsByOwner                        = "getTokenAccountsByOwner"
+	getBlock                                       = "getBlock"
+	getVersion                                     = "getVersion"
 )
 
 const (
@@ -210,6 +212,24 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 				out = true
 			}
 		}
+	case getBlock:
+		var resp *rpc.GetBlockResult
+		slot := a.slot
+		for j := 0; j < getBlockTries; j++ {
+			resp, err = rpcClient.GetBlockWithOpts(a.ctx, slot, &rpc.GetBlockOpts{
+				MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
+			})
+			if typedErr, ok := err.(*jsonrpc.RPCError); ok && typedErr.Code == slotSkipperErrCode {
+				slot = slot + 10
+				continue
+			}
+			if err == nil && !resp.Blockhash.IsZero() {
+				out = true
+			}
+			break
+		}
+	case getVersion:
+		out = true // if alghorithm reach this point, then getVersion is working method on node
 	case sendTransaction:
 		var blockhash *rpc.GetRecentBlockhashResult
 		blockhash, err = rpcClient.GetRecentBlockhash(a.ctx, rpc.CommitmentFinalized)

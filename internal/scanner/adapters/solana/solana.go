@@ -30,6 +30,7 @@ type SolanaAdapter struct {
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
 	signatureForAddress    solana.Signature
+	slot                   uint64
 	baseRpcClient          *rpc.Client
 }
 
@@ -101,6 +102,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 	}
 
 	slot = slot - slotShift
+	a.slot = slot
 	ops := rpc.GetBlockOpts{
 		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 		TransactionDetails:             rpc.TransactionDetailsSignatures,
