@@ -1,3 +1,5 @@
+.PHONY: build start dev stop test mocks lint
+
 SHELL := /bin/bash
 
 export APP_NAME=extrnode-go
