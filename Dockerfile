@@ -15,4 +15,4 @@ COPY --from=builder /app/scanner /usr/bin/
 COPY --from=builder /app/api /usr/bin/
 
 COPY --from=builder /app/db /db
-COPY --from=builder /app/certs /certs
+COPY --from=builder /app/creds /creds

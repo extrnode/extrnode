@@ -13,6 +13,9 @@ services:
     entrypoint: "scanner"
     command:
       - -log=debug
+    logging:
+      options:
+        max-size: "1g"
 
   extrnode-api:
     container_name: extrnode-api
@@ -30,6 +33,9 @@ services:
     entrypoint: "api"
     command:
       - -log=debug
+    logging:
+      options:
+        max-size: "1g"
 
   postgres:
     container_name: extrnode-postgres
@@ -43,6 +49,9 @@ services:
       POSTGRES_DB: "${PG_DB}"
     volumes:
       - postgres:/var/lib/postgresql/data
+    logging:
+      options:
+        max-size: "50m"
 
   clickhouse:
     container_name: extrnode-clickhouse
@@ -60,6 +69,9 @@ services:
     volumes:
       - clickhouse:/var/lib/clickhouse
       - ./build/clickhouse:/docker-entrypoint-initdb.d
+    logging:
+      options:
+        max-size: "50m"
 
 volumes:
   postgres:

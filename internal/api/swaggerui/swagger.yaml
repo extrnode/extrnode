@@ -101,8 +101,35 @@ paths:
         500:
           description: Internal server error
           content: { }
+  /api_token:
+    get:
+      security:
+        - bearerAuth: [ ]
+      summary: Get api token for interaction with proxy
+      operationId: api_token
+      responses:
+        200:
+          description: uuid string
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 9ab69625-ab68-40ce-8238-93c04acc7e32
+        400:
+          description: Bad request
+          content: { }
+        401:
+          $ref: '#/components/schemas/UnauthorizedError'
+        500:
+          description: Internal server error
+          content: { }
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     EndpointsJson:
       type: object
@@ -170,3 +197,5 @@ components:
         validator:
           type: integer
           example: 15
+    UnauthorizedError:
+      description: Access token is missing or invalid

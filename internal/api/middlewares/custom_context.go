@@ -3,6 +3,7 @@ package middlewares
 import (
 	"time"
 
+	"firebase.google.com/go/v4/auth"
 	"github.com/labstack/echo/v4"
 
 	"extrnode-be/internal/pkg/util/solana"
@@ -21,6 +22,7 @@ type CustomContext struct {
 	proxyUserError    bool
 	proxyHasError     bool
 	reqDuration       time.Time
+	user              *auth.UserRecord
 }
 
 func (c *CustomContext) SetReqMethods(reqMethods []string) {
@@ -111,4 +113,12 @@ func (c *CustomContext) SetReqDuration(reqDuration time.Time) {
 
 func (c *CustomContext) GetReqDuration() time.Time {
 	return c.reqDuration
+}
+
+func (c *CustomContext) SetUser(u *auth.UserRecord) {
+	c.user = u
+}
+
+func (c *CustomContext) GetUser() *auth.UserRecord {
+	return c.user
 }

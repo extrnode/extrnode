@@ -25,6 +25,7 @@ type ApiConfig struct {
 	MetricsPort       uint64          `required:"false" split_words:"true"`
 	CertFile          string          `required:"false" split_words:"true"`
 	FailoverEndpoints FailoverTargets `required:"false" split_words:"true"`
+	FirebaseFilePath  string          `required:"true" split_words:"true"`
 }
 
 type PostgresConfig struct {
