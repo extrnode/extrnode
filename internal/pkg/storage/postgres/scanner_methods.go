@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type ScannerMethod struct {
 
 const scannerMethodsTable = "scanner.methods"
 
-func (p *PgStorage) CreateScannerMethod(peerID, rpcMethodID int, date time.Time, timeConnect, timeResponse time.Duration, responseCode int, responseValid bool) error {
+func (p *Storage) CreateScannerMethod(peerID, rpcMethodID int, date time.Time, timeConnect, timeResponse time.Duration, responseCode int, responseValid bool) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty PeerID")
 	}

@@ -8,7 +8,7 @@ import (
 
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/postgres"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
 	"extrnode-be/internal/scanner/scaners/nmap"
@@ -16,7 +16,7 @@ import (
 
 type scanner struct {
 	cfg     config.Config
-	storage storage.PgStorage
+	storage postgres.Storage
 
 	taskQueue     chan scannerTask
 	nmapTaskQueue chan scannerTask
@@ -30,7 +30,7 @@ type scanner struct {
 func NewScanner(cfg config.Config) (*scanner, error) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	s, err := storage.New(ctx, cfg.PG)
+	s, err := postgres.New(ctx, cfg.PG)
 	if err != nil {
 		cancelFunc()
 		return nil, fmt.Errorf("storage init: %s", err)

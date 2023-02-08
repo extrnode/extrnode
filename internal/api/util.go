@@ -43,7 +43,7 @@ func (a *api) getStats() (res models.Stat, err error) {
 		return cacheValue.(models.Stat), nil
 	}
 
-	res, err = a.storage.GetStats()
+	res, err = a.pgStorage.GetStats()
 	if err != nil {
 		return res, err
 	}

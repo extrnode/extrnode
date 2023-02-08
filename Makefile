@@ -13,6 +13,7 @@ start:
 
 dev:
 	@docker-compose up -d postgres
+	@docker-compose up -d clickhouse
 
 stop:
 	@docker-compose stop

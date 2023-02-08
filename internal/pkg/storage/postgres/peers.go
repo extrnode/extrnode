@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -40,7 +40,7 @@ type (
 
 const peersTable = "peers"
 
-func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string, isRpc, isAlive, isSSL, isMainNet, isValidator bool, nodePubkey string) (id int, err error) {
+func (p *Storage) GetOrCreatePeer(blockchainID, ipID, port int, version string, isRpc, isAlive, isSSL, isMainNet, isValidator bool, nodePubkey string) (id int, err error) {
 	if blockchainID == 0 {
 		return id, fmt.Errorf("empty blockchainID")
 	}
@@ -88,7 +88,7 @@ func (p *PgStorage) GetOrCreatePeer(blockchainID, ipID, port int, version string
 	return m.ID, nil
 }
 
-func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet, isValidator bool, version string) (err error) {
+func (p *Storage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet, isValidator bool, version string) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -103,7 +103,7 @@ func (p *PgStorage) UpdatePeerByID(peerID int, isRpc, isAlive, isSSL, isMainNet,
 	return nil
 }
 
-func (p *PgStorage) UpdatePeerNodePubkey(peerID int, nodePubkey string) (err error) {
+func (p *Storage) UpdatePeerNodePubkey(peerID int, nodePubkey string) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -118,7 +118,7 @@ func (p *PgStorage) UpdatePeerNodePubkey(peerID int, nodePubkey string) (err err
 	return nil
 }
 
-func (p *PgStorage) UpdatePeerIsOutdated(peerID int, isOutdated bool) (err error) {
+func (p *Storage) UpdatePeerIsOutdated(peerID int, isOutdated bool) (err error) {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -133,7 +133,7 @@ func (p *PgStorage) UpdatePeerIsOutdated(peerID int, isOutdated bool) (err error
 	return nil
 }
 
-func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
+func (p *Storage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bool, asnCountries, versions, supportedMethods []string) (res []models.Endpoint, err error) {
 	if blockchainID == 0 {
 		return nil, fmt.Errorf("empty blockchainID")
 	}
@@ -189,7 +189,7 @@ func (p *PgStorage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bo
 	return res, nil
 }
 
-func (p *PgStorage) GetPeers(isUniqIP bool, isAlive, isMainNet, isRpc *bool, blockchainID *int) (res []PeerWithIpAndBlockchain, err error) {
+func (p *Storage) GetPeers(isUniqIP bool, isAlive, isMainNet, isRpc *bool, blockchainID *int) (res []PeerWithIpAndBlockchain, err error) {
 	if blockchainID != nil && *blockchainID == 0 {
 		return nil, fmt.Errorf("empty blockchainID")
 	}
@@ -229,7 +229,7 @@ func (p *PgStorage) GetPeers(isUniqIP bool, isAlive, isMainNet, isRpc *bool, blo
 	return res, nil
 }
 
-func (p *PgStorage) GetExistentPeers(blockchainID int, ips []net.IP) (res map[string]map[int]PeerWithIp, err error) {
+func (p *Storage) GetExistentPeers(blockchainID int, ips []net.IP) (res map[string]map[int]PeerWithIp, err error) {
 	if len(ips) == 0 {
 		return res, nil
 	}
@@ -265,7 +265,7 @@ func (p *PgStorage) GetExistentPeers(blockchainID int, ips []net.IP) (res map[st
 	return res, nil
 }
 
-func (p *PgStorage) GetStats() (res models.Stat, err error) {
+func (p *Storage) GetStats() (res models.Stat, err error) {
 	q := `SELECT COUNT(*)                                                   					AS total,
 		   SUM(CASE WHEN prs_is_alive IS TRUE THEN 1 ELSE 0 END)     							AS alive,
 		   SUM(CASE WHEN prs_is_rpc IS TRUE THEN 1 ELSE 0 END)       							AS rpc,

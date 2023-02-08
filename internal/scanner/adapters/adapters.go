@@ -1,10 +1,10 @@
 package adapters
 
-import "extrnode-be/internal/pkg/storage"
+import "extrnode-be/internal/pkg/storage/postgres"
 
 type Adapter interface {
-	Scan(peer storage.PeerWithIpAndBlockchain) error
-	GetNewNodes(peer storage.PeerWithIpAndBlockchain) error
+	Scan(peer postgres.PeerWithIpAndBlockchain) error
+	GetNewNodes(peer postgres.PeerWithIpAndBlockchain) error
 	BeforeRun() error
 	CheckOutdatedNodes() error
 }

@@ -6,7 +6,9 @@ The results get written to DB.
 ## Build and Deployment (local)
 - install golang 1.19
 - install Postgresql 11
-- create a Postgresql DB 
+- create a Postgresql DB
+- install Clickhouse 23.1
+- use migration for clickhouse [init-db.sh](build/clickhouse/init-db.sh)
 - install nmap from official site (https://nmap.org/)
 - setup env vars from [.env.example](.env.example) file
 - compile programs:
@@ -56,7 +58,7 @@ API_CERT_FILE=certs/api.pem
 # failover endpoints for proxy. Json encoded object array (optional)
 API_FAILOVER_ENDPOINTS=[{"url":"http://127.0.0.1:8001","reqLimitHourly":1},{"url":"http://127.0.0.1","reqLimitHourly":2}]
 
-# database connection properties
+# postgres database connection properties
 PG_HOST=localhost
 PG_PORT=5432
 PG_USER=extrnode
@@ -65,6 +67,9 @@ PG_PASS=somepass
 PG_DB=extrnode
 # path to migrations dir
 PG_MIGRATIONS_PATH=db/pg-migrations
+
+# clickhouse connection string
+CH_DSN=clickhouse://username:password@host1:9000,host2:9000/database?dial_timeout=500ms&max_execution_time=60
 ```
 
 ## API documentation

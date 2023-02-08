@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/postgres"
 )
 
 type chainType string
@@ -19,7 +19,7 @@ const (
 )
 
 type scannerTask struct {
-	peer  storage.PeerWithIpAndBlockchain
+	peer  postgres.PeerWithIpAndBlockchain
 	chain chainType
 }
 

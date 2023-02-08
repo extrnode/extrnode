@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"context"
@@ -13,12 +13,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type PgStorage struct {
+type Storage struct {
 	db   orm.DB
 	isTx bool
 }
 
-func New(ctx context.Context, cfg config.PostgresConfig) (s PgStorage, err error) {
+func New(ctx context.Context, cfg config.PostgresConfig) (s Storage, err error) {
 	// DialTimeout default is 5s
 	db := pg.Connect(&pg.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -69,12 +69,12 @@ func New(ctx context.Context, cfg config.PostgresConfig) (s PgStorage, err error
 		log.Infof("PG migration version is %d", oldVersion)
 	}
 
-	return PgStorage{
+	return Storage{
 		db: db,
 	}, nil
 }
 
-func (p *PgStorage) BeginTx() (s PgStorage, err error) {
+func (p *Storage) BeginTx() (s Storage, err error) {
 	if p.isTx {
 		return s, fmt.Errorf("already tx")
 	}
@@ -84,13 +84,13 @@ func (p *PgStorage) BeginTx() (s PgStorage, err error) {
 		return s, err
 	}
 
-	return PgStorage{
+	return Storage{
 		db:   tx,
 		isTx: true,
 	}, nil
 }
 
-func (p *PgStorage) Rollback() error {
+func (p *Storage) Rollback() error {
 	if !p.isTx {
 		return fmt.Errorf("not tx")
 	}
@@ -98,7 +98,7 @@ func (p *PgStorage) Rollback() error {
 	return p.db.(*pg.Tx).Rollback()
 }
 
-func (p *PgStorage) Commit() error {
+func (p *Storage) Commit() error {
 	if !p.isTx {
 		return fmt.Errorf("not tx")
 	}

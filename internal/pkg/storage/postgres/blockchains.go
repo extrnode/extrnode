@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type Blockchain struct {
 
 const blockchainsTable = "blockchains"
 
-func (p *PgStorage) GetOrCreateBlockchain(name string) (id int, err error) {
+func (p *Storage) GetOrCreateBlockchain(name string) (id int, err error) {
 	if name == "" {
 		return id, fmt.Errorf("empty name")
 	}
@@ -56,7 +56,7 @@ func (p *PgStorage) GetOrCreateBlockchain(name string) (id int, err error) {
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetBlockchainsMap() (res map[string]int, err error) {
+func (p *Storage) GetBlockchainsMap() (res map[string]int, err error) {
 	query, args, err := sq.Select("blc_id, blc_name").
 		From(blockchainsTable).ToSql()
 	if err != nil {
@@ -77,7 +77,7 @@ func (p *PgStorage) GetBlockchainsMap() (res map[string]int, err error) {
 	return res, nil
 }
 
-func (p *PgStorage) GetBlockchainByName(name string) (res Blockchain, err error) {
+func (p *Storage) GetBlockchainByName(name string) (res Blockchain, err error) {
 	query, args, err := sq.Select("blc_id, blc_name").
 		From(blockchainsTable).
 		Where("blc_name = ?", name).

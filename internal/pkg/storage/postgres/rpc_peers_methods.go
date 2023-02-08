@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type RpcPeerMethod struct {
 
 const rpcPeersMethodsTable = "rpc.peers_methods"
 
-func (p *PgStorage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time.Duration) error {
+func (p *Storage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time.Duration) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -33,7 +33,7 @@ func (p *PgStorage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime ti
 	return nil
 }
 
-func (p *PgStorage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
+func (p *Storage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}

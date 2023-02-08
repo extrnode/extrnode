@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type ScannerPeer struct {
 
 const scannerPeersTable = "scanner.peers"
 
-func (p *PgStorage) CreateScannerPeer(peerID int, date time.Time, timeConnect time.Duration, isAlive bool) error {
+func (p *Storage) CreateScannerPeer(peerID int, date time.Time, timeConnect time.Duration, isAlive bool) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}

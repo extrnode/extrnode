@@ -12,6 +12,9 @@ func (c Config) validate() error {
 	if err := c.PG.validate(); err != nil {
 		return fmt.Errorf("postgres: %s", err)
 	}
+	if err := c.CH.validate(); err != nil {
+		return fmt.Errorf("clickhouse: %s", err)
+	}
 	if err := c.Scanner.validate(); err != nil {
 		return fmt.Errorf("scanner: %s", err)
 	}
@@ -35,6 +38,14 @@ func (a ApiConfig) validate() error {
 func (p PostgresConfig) validate() error {
 	if p.Port == 0 {
 		return fmt.Errorf("invalid port")
+	}
+
+	return nil
+}
+
+func (c ClickhouseConfig) validate() error {
+	if c.DSN == "" {
+		return fmt.Errorf("invalid dsn")
 	}
 
 	return nil

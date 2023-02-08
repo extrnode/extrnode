@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type GeoNetwork struct {
 
 const geoNetworksTable = "geo.networks"
 
-func (p *PgStorage) GetOrCreateGeoNetwork(countryID int, mask net.IPNet, as int, name string) (id int, err error) {
+func (p *Storage) GetOrCreateGeoNetwork(countryID int, mask net.IPNet, as int, name string) (id int, err error) {
 	if countryID == 0 {
 		return id, fmt.Errorf("empty countryID")
 	}
@@ -60,7 +60,7 @@ func (p *PgStorage) GetOrCreateGeoNetwork(countryID int, mask net.IPNet, as int,
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetGeoNetworks() (res []GeoNetwork, err error) {
+func (p *Storage) GetGeoNetworks() (res []GeoNetwork, err error) {
 	query, args, err := sq.Select("ntw_id, cnt_id, ntw_mask, ntw_as, ntw_name").
 		From(geoNetworksTable).ToSql()
 	if err != nil {

@@ -18,12 +18,14 @@ import (
 	log2 "github.com/labstack/gommon/log"
 	"github.com/patrickmn/go-cache"
 
+	"extrnode-be/internal/api/log_collector"
 	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/api/middlewares/proxy"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/clickhouse"
+	"extrnode-be/internal/pkg/storage/postgres"
 )
 
 // holds swagger static web server content.
@@ -37,7 +39,8 @@ type api struct {
 	certData      []byte
 	router        *echo.Echo
 	metricsServer *echo.Echo
-	storage       storage.PgStorage
+	pgStorage     postgres.Storage
+	chStorage     clickhouse.Storage
 	cache         *cache.Cache
 	waitGroup     *sync.WaitGroup
 	ctx           context.Context
@@ -47,6 +50,8 @@ type api struct {
 	blockchainIDs          map[string]int
 	apiPrivateKey          solana.PrivateKey
 	failoverTargets        config.FailoverTargets
+
+	logCollector *log_collector.Collector
 }
 
 const (
@@ -68,12 +73,16 @@ func NewAPI(cfg config.Config) (*api, error) {
 	//uuid.EnableRandPool()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	s, err := storage.New(ctx, cfg.PG)
+	pgStorage, err := postgres.New(ctx, cfg.PG)
 	if err != nil {
-		return nil, fmt.Errorf("storage init: %s", err)
+		return nil, fmt.Errorf("PG storage init: %s", err)
+	}
+	chStorage, err := clickhouse.New(cfg.CH.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
 
-	blockchainsMap, err := s.GetBlockchainsMap()
+	blockchainsMap, err := pgStorage.GetBlockchainsMap()
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
@@ -89,7 +98,8 @@ func NewAPI(cfg config.Config) (*api, error) {
 		metricsPort:   cfg.API.MetricsPort,
 		router:        echo.New(),
 		metricsServer: echo.New(),
-		storage:       s,
+		pgStorage:     pgStorage,
+		chStorage:     chStorage,
 		cache:         cache.New(cacheTTL, cacheTTL),
 
 		waitGroup: &sync.WaitGroup{},
@@ -103,6 +113,8 @@ func NewAPI(cfg config.Config) (*api, error) {
 		blockchainIDs:   blockchainsMap,
 		apiPrivateKey:   privKey,
 		failoverTargets: cfg.API.FailoverEndpoints,
+
+		logCollector: log_collector.NewCollector(ctx, chStorage),
 	}
 
 	if cfg.API.CertFile != "" {
@@ -115,6 +127,9 @@ func NewAPI(cfg config.Config) (*api, error) {
 	a.setupServer()
 
 	err = a.initApiHandlers()
+
+	go a.logCollector.StartStatSaver()
+
 	return a, err
 }
 
@@ -130,7 +145,10 @@ func (a *api) setupServer() {
 
 func (a *api) initMetrics() {
 	a.metricsServer.HideBanner = true
-	a.metricsServer.Use(middleware.Recover())
+	a.metricsServer.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{
+		DisableStackAll: true,
+		LogErrorFunc:    logPanic,
+	}))
 	a.metricsServer.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus: true,
 		LogMethod: true,
@@ -205,7 +223,7 @@ func (a *api) initApiHandlers() error {
 			ProxyEndpointContextKey:     proxyEndpointContextKey,
 			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
 			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
-		}),
+		}, a.logCollector.AddStat),
 		middlewares.NewMetricsMiddleware(middlewares.MetricsContextConfig{
 			ReqMethodContextKey:         reqMethodContextKey,
 			RpcErrorContextKey:          rpcErrorContextKey,
@@ -289,7 +307,7 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 	}
 	isRpc := true
 
-	endpoints, err := a.storage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
+	endpoints, err := a.pgStorage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetEndpoints: %s", err)
 	}

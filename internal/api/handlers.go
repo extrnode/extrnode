@@ -8,9 +8,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/models"
 	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/util/solana"
 )
 
 const (
@@ -100,13 +100,13 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "supported_method length")
 		}
 		for _, method := range supportedMethods {
-			if _, ok := middlewares.FullMethodList[method]; !ok {
+			if _, ok := solana.FullMethodList[method]; !ok {
 				return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unknown method: %s", method))
 			}
 		}
 	}
 
-	res, err := a.storage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
+	res, err := a.pgStorage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
 		log.Logger.Api.Errorf("endpointsHandler: GetEndpoints: %s", err)
 		return err
