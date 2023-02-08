@@ -9,23 +9,14 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+
+	"extrnode-be/internal/api/middlewares"
 )
 
-type ProxyContextConfig struct {
-	ProxyEndpointContextKey     string
-	ProxyAttemptsContextKey     string
-	ProxyResponseTimeContextKey string // in ms. type int64
-	ProxyUserErrorContextKey    string
-	ProxyHasErrorContextKey     string
-	ResBodyContextKey           string
-	RpcErrorContextKey          string // array
-	ReqMethodContextKey         string
-}
-
-func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) echo.MiddlewareFunc {
+func NewProxyMiddleware(transport *ProxyTransport) echo.MiddlewareFunc {
 	// set some basic url so validation does not fail, later we get proxy url from transport in roundtripper
 	baseUrl, _ := url.Parse("https://localhost:8080")
-	responseModifier := newResponseModifier(config)
+	responseModifier := responseModifier{}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) (err error) {
@@ -46,10 +37,10 @@ func NewProxyMiddleware(transport *ProxyTransport, config ProxyContextConfig) ec
 			}
 
 			proxy := httputil.NewSingleHostReverseProxy(baseUrl)
-			proxy.Transport = transport.WithContext(c, config)
+			proxy.Transport = transport.WithContext(c)
 			proxy.ModifyResponse = responseModifier.WithContext(c)
 
-			eh := NewErrorHandler(config)
+			eh := errorHandler{}
 			proxy.ErrorHandler = eh.WithContext(c)
 
 			proxy.ServeHTTP(res, req)
@@ -66,25 +57,15 @@ const (
 	headerNodeEndpoint     = "X-NODE-ENDPOINT"
 )
 
-type responseModifier struct {
-	config ProxyContextConfig
-}
-
-func newResponseModifier(config ProxyContextConfig) responseModifier {
-	return responseModifier{
-		config: config,
-	}
-}
+type responseModifier struct{}
 
 func (rm *responseModifier) WithContext(c echo.Context) func(*http.Response) error {
 	return func(res *http.Response) error {
-		endpoint, _ := c.Get(rm.config.ProxyEndpointContextKey).(string)
-		attempts, _ := c.Get(rm.config.ProxyAttemptsContextKey).(int)
-		responseTime, _ := c.Get(rm.config.ProxyResponseTimeContextKey).(int64)
+		cc := c.(*middlewares.CustomContext)
 
-		res.Header.Set(headerNodeEndpoint, endpoint)
-		res.Header.Set(headerNodeReqAttempts, fmt.Sprintf("%d", attempts))
-		res.Header.Set(headerNodeResponseTime, fmt.Sprintf("%dms", responseTime))
+		res.Header.Set(headerNodeEndpoint, cc.GetProxyEndpoint())
+		res.Header.Set(headerNodeReqAttempts, fmt.Sprintf("%d", cc.GetProxyAttempts()))
+		res.Header.Set(headerNodeResponseTime, fmt.Sprintf("%dms", cc.GetProxyResponseTime()))
 
 		return nil
 	}
@@ -98,12 +79,7 @@ func (rm *responseModifier) WithContext(c echo.Context) func(*http.Response) err
 const StatusCodeContextCanceled = 499
 
 type errorHandler struct {
-	err    error
-	config ProxyContextConfig
-}
-
-func NewErrorHandler(config ProxyContextConfig) errorHandler {
-	return errorHandler{config: config}
+	err error
 }
 
 func (eh *errorHandler) WithContext(c echo.Context) func(http.ResponseWriter, *http.Request, error) {
