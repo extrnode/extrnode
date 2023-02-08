@@ -6,48 +6,21 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"extrnode-be/internal/pkg/metrics"
-	"extrnode-be/internal/pkg/util/solana"
 )
 
-type MetricsContextConfig struct {
-	ReqMethodContextKey         string
-	RpcErrorContextKey          string
-	ProxyEndpointContextKey     string
-	ProxyAttemptsContextKey     string
-	ProxyResponseTimeContextKey string
-	ProxyUserErrorContextKey    string
-	ProxyHasErrorContextKey     string
-	ReqDurationContextKey       string
-}
-
-func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
+func NewMetricsMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			err := next(c)
+			cc := c.(*CustomContext)
 
-			reqDuration, _ := c.Get(config.ReqDurationContextKey).(time.Time)
-			rpcMethods, _ := c.Get(config.ReqMethodContextKey).([]string)
-			// rpcErrorCodes, _ := c.Get(config.RpcErrorContextKey).([]int)
-			// endpoint, _ := c.Get(config.ProxyEndpointContextKey).(string)
-			attempts, _ := c.Get(config.ProxyAttemptsContextKey).(int)
-			nodeResponseTime, _ := c.Get(config.ProxyResponseTimeContextKey).(int64)
-			hasError, _ := c.Get(config.ProxyHasErrorContextKey).(bool)
-			userError, _ := c.Get(config.ProxyUserErrorContextKey).(bool)
-			// cl := c.Request().Header.Get(echo.HeaderContentLength)
-
-			var rpcMethod string
-			if len(rpcMethods) > 1 {
-				rpcMethod = solana.MultipleValuesRequested
-			} else if len(rpcMethods) == 1 {
-				rpcMethod = rpcMethods[0]
-			}
-
-			success := !hasError || userError
+			rpcMethod := cc.GetReqMethod()
+			success := !cc.GetProxyHasError() || cc.GetProxyUserError()
 
 			metrics.IncHttpResponsesTotalCnt(rpcMethod, success)
-			metrics.ObserveNodeAttempts(rpcMethod, success, attempts)
-			metrics.ObserveNodeResponseTime(rpcMethod, success, nodeResponseTime)
-			metrics.ObserveExecutionTime(rpcMethod, success, time.Since(reqDuration))
+			metrics.ObserveNodeAttempts(rpcMethod, success, cc.GetProxyAttempts())
+			metrics.ObserveNodeResponseTime(rpcMethod, success, cc.GetProxyResponseTime())
+			metrics.ObserveExecutionTime(rpcMethod, success, time.Since(cc.GetReqDuration()))
 
 			return err
 		}

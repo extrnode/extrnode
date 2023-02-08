@@ -61,19 +61,19 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 		body = body[:bodyLimit]
 	}
 	// save truncated body to context before handling it. Used in logger
-	ptc.c.Set(ptc.config.ResBodyContextKey, body)
+	ptc.c.SetResBody(body)
 	// clean possible old value
-	ptc.c.Set(ptc.config.RpcErrorContextKey, nil)
+	ptc.c.SetRpcErrors(nil)
 
 	if len(body) == 0 {
 		return append(errs, errors.New("empty body"))
 	}
 
-	rpcMethods, _ := ptc.c.Get(ptc.config.ReqMethodContextKey).([]string)
 	var errCodes []int
 	switch fs := body[0]; {
 	case fs == '{':
 		var rpcResponse middlewares.RPCResponse
+		rpcMethod := ptc.c.GetReqMethod()
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
 			return append(errs, fmt.Errorf("error while parsing response: %s", err))
@@ -92,11 +92,12 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 			break
 		}
 
-		if string(rpcResponse.Result) == jsonMsgNullString && len(rpcMethods) == 1 && rpcMethods[0] == "getBlock" {
+		if string(rpcResponse.Result) == jsonMsgNullString && rpcMethod == "getBlock" {
 			errs = append(errs, fmt.Errorf("empty response field"))
 		}
 	case fs == '[':
 		var rpcResponse middlewares.RPCResponses
+		rpcMethods := ptc.c.GetReqMethods()
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
 			return append(errs, fmt.Errorf("error while parsing response: %s", err))
@@ -130,7 +131,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 	}
 
 	if len(errCodes) != 0 {
-		ptc.c.Set(ptc.config.RpcErrorContextKey, errCodes)
+		ptc.c.SetRpcErrors(errCodes)
 	}
 	if len(errs) != 0 {
 		return errs

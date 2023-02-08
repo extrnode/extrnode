@@ -15,19 +15,15 @@ import (
 	"extrnode-be/internal/pkg/util/solana"
 )
 
-type ValidatorContextConfig struct {
-	ReqMethodContextKey string
-	ReqBodyContextKey   string
-}
-
 const (
 	bodyLimit      = 1000
 	jsonrpcVersion = "2.0"
 )
 
-func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
+func NewValidatorMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			cc := c.(*CustomContext)
 			if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
 				return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Invalid content-type, this application only supports application/json")
 			}
@@ -53,8 +49,7 @@ func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 			decoder.DisallowUnknownFields()
 			decoder.UseNumber()
 
-			// save body before handling
-			c.Set(config.ReqBodyContextKey, string(reqBody))
+			cc.SetReqBody(reqBody)
 
 			var methodArray []string
 			switch fs := reqBody[0]; {
@@ -99,8 +94,7 @@ func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 			default:
 				return fmt.Errorf("invalid json first symbol: %s", string(fs))
 			}
-
-			c.Set(config.ReqMethodContextKey, methodArray)
+			cc.SetReqMethods(methodArray)
 
 			return next(c)
 		}

@@ -173,6 +173,13 @@ func (a *api) initApiHandlers() error {
 		DisableStackAll: true,
 		LogErrorFunc:    logPanic,
 	}))
+	a.router.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			return next(&middlewares.CustomContext{
+				Context: c,
+			})
+		}
+	})
 	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		ErrorMessage: "Request Timeout",
 		Timeout:      apiWriteTimeout,
@@ -198,56 +205,14 @@ func (a *api) initApiHandlers() error {
 
 	go a.updateProxyEndpoints(transport)
 
-	const (
-		reqMethodContextKey         = "req_method" // array
-		reqBodyContextKey           = "req_body"
-		resBodyContextKey           = "res_body"
-		rpcErrorContextKey          = "res_err" // array
-		proxyEndpointContextKey     = "proxy_host"
-		proxyAttemptsContextKey     = "proxy_attempts"
-		proxyResponseTimeContextKey = "proxy_time"
-		proxyUserErrorContextKey    = "user_error"
-		proxyHasErrorContextKey     = "has_error"
-		reqDurationContextKey       = "req_duration"
-	)
-
 	// proxy
 	generalGroup.POST("/", nil,
-		middlewares.RequestDurationMiddleware(reqDurationContextKey),
+		middlewares.RequestDurationMiddleware(),
 		middlewares.RequestIDMiddleware(),
-		middlewares.NewLoggerMiddleware(middlewares.LoggerContextConfig{
-			ReqMethodContextKey:         reqMethodContextKey,
-			ReqBodyContextKey:           reqBodyContextKey,
-			ResBodyContextKey:           resBodyContextKey,
-			RpcErrorContextKey:          rpcErrorContextKey,
-			ProxyEndpointContextKey:     proxyEndpointContextKey,
-			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
-			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
-		}, a.logCollector.AddStat),
-		middlewares.NewMetricsMiddleware(middlewares.MetricsContextConfig{
-			ReqMethodContextKey:         reqMethodContextKey,
-			RpcErrorContextKey:          rpcErrorContextKey,
-			ProxyEndpointContextKey:     proxyEndpointContextKey,
-			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
-			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
-			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
-			ProxyHasErrorContextKey:     proxyHasErrorContextKey,
-			ReqDurationContextKey:       reqDurationContextKey,
-		}),
-		middlewares.NewValidatorMiddleware(middlewares.ValidatorContextConfig{
-			ReqMethodContextKey: reqMethodContextKey,
-			ReqBodyContextKey:   reqBodyContextKey,
-		}),
-		proxy.NewProxyMiddleware(transport, proxy.ProxyContextConfig{
-			ProxyEndpointContextKey:     proxyEndpointContextKey,
-			ProxyAttemptsContextKey:     proxyAttemptsContextKey,
-			ProxyResponseTimeContextKey: proxyResponseTimeContextKey,
-			ProxyUserErrorContextKey:    proxyUserErrorContextKey,
-			ProxyHasErrorContextKey:     proxyHasErrorContextKey,
-			ResBodyContextKey:           resBodyContextKey,
-			RpcErrorContextKey:          rpcErrorContextKey,
-			ReqMethodContextKey:         reqMethodContextKey,
-		}),
+		middlewares.NewLoggerMiddleware(a.logCollector.AddStat),
+		middlewares.NewMetricsMiddleware(),
+		middlewares.NewValidatorMiddleware(),
+		proxy.NewProxyMiddleware(transport),
 	)
 
 	// api docs

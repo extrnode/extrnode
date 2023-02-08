@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 
@@ -33,8 +34,7 @@ type ProxyTransport struct {
 
 type proxyTransportWithContext struct {
 	transport *ProxyTransport
-	c         echo.Context
-	config    ProxyContextConfig
+	c         *middlewares.CustomContext
 }
 
 const (
@@ -75,11 +75,10 @@ func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*
 	return pt, nil
 }
 
-func (pt *ProxyTransport) WithContext(c echo.Context, config ProxyContextConfig) *proxyTransportWithContext {
+func (pt *ProxyTransport) WithContext(c echo.Context) *proxyTransportWithContext {
 	return &proxyTransportWithContext{
 		transport: pt,
-		c:         c,
-		config:    config,
+		c:         c.(*middlewares.CustomContext),
 	}
 }
 
@@ -129,7 +128,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 			analysisErr := ptc.getResponseError(resp)
 			if analysisErr != nil {
 				if analysisErr == ErrInvalidRequest {
-					ptc.c.Set(ptc.config.ProxyUserErrorContextKey, true)
+					ptc.c.SetProxyUserError(true)
 					return false, true
 				}
 
@@ -151,15 +150,15 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 	}
 
 	if target != nil {
-		ptc.c.Set(ptc.config.ProxyEndpointContextKey, target.url.String())
-		ptc.c.Set(ptc.config.ProxyAttemptsContextKey, i+1)
+		ptc.c.SetProxyEndpoint(target.url.String())
+		ptc.c.SetProxyAttempts(i + 1)
 	}
 
 	if !startTime.IsZero() {
-		ptc.c.Set(ptc.config.ProxyResponseTimeContextKey, time.Since(startTime).Milliseconds())
+		ptc.c.SetProxyResponseTime(time.Since(startTime).Milliseconds())
 	}
 
-	ptc.c.Set(ptc.config.ProxyHasErrorContextKey, err != nil)
+	ptc.c.SetProxyHasError(err != nil)
 
 	return resp, err
 }
