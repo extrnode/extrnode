@@ -5,9 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
-	"sort"
 	"sync"
 	"time"
 
@@ -34,7 +32,7 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	apiPort       uint64
+	conf          config.ApiConfig
 	metricsPort   uint64
 	certData      []byte
 	router        *echo.Echo
@@ -49,8 +47,6 @@ type api struct {
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
 	apiPrivateKey          solana.PrivateKey
-	failoverTargets        config.FailoverTargets
-
 	logCollector *log_collector.Collector
 }
 
@@ -94,8 +90,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
-		apiPort:       cfg.API.Port,
-		metricsPort:   cfg.API.MetricsPort,
+		conf:          cfg.API,
 		router:        echo.New(),
 		metricsServer: echo.New(),
 		pgStorage:     pgStorage,
@@ -112,8 +107,6 @@ func NewAPI(cfg config.Config) (*api, error) {
 		},
 		blockchainIDs:   blockchainsMap,
 		apiPrivateKey:   privKey,
-		failoverTargets: cfg.API.FailoverEndpoints,
-
 		logCollector: log_collector.NewCollector(ctx, chStorage),
 	}
 
@@ -195,10 +188,19 @@ func (a *api) initApiHandlers() error {
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
+	// public
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
 
-	transport, err := proxy.NewProxyTransport(false, a.failoverTargets)
+	// protected
+	aMw, err := middlewares.NewAuthMiddleware(a.ctx, a.conf)
+	if err != nil {
+		return fmt.Errorf("NewAuthMiddleware: %s", err)
+	}
+	protectedGroup := generalGroup.Group("", aMw.LoadUser)
+	protectedGroup.GET("/api_token", a.apiTokenHandler)
+
+	transport, err := proxy.NewProxyTransport(false, a.conf.FailoverEndpoints)
 	if err != nil {
 		return err
 	}
@@ -222,7 +224,7 @@ func (a *api) initApiHandlers() error {
 }
 
 func (a *api) Run() (err error) {
-	addr := fmt.Sprintf(":%d", a.apiPort)
+	addr := fmt.Sprintf(":%d", a.conf.Port)
 	if len(a.certData) != 0 {
 		err = a.router.StartTLS(addr, a.certData, a.certData)
 	} else {
@@ -236,10 +238,10 @@ func (a *api) Run() (err error) {
 }
 
 func (a *api) RunMetrics() (err error) {
-	if a.metricsPort == 0 {
+	if a.conf.MetricsPort == 0 {
 		return nil
 	}
-	err = a.metricsServer.Start(fmt.Sprintf(":%d", a.metricsPort))
+	err = a.metricsServer.Start(fmt.Sprintf(":%d", a.conf.MetricsPort))
 	if err != http.ErrServerClosed {
 		return err
 	}
@@ -263,53 +265,4 @@ func (a *api) Stop() error {
 
 func (a *api) WaitGroup() *sync.WaitGroup {
 	return a.waitGroup
-}
-
-func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
-	blockchainID, ok := a.blockchainIDs[blockchain]
-	if !ok {
-		return nil, fmt.Errorf("fail to get blockchainID")
-	}
-	isRpc := true
-
-	endpoints, err := a.pgStorage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("GetEndpoints: %s", err)
-	}
-
-	// temp sort solution
-	// TODO: sort by methods
-	sort.Slice(endpoints, func(i, j int) bool {
-		return endpoints[i].SupportedMethods.AverageResponseTime() < endpoints[j].SupportedMethods.AverageResponseTime()
-	})
-
-	urls := make([]*url.URL, 0, len(endpoints))
-	for _, e := range endpoints {
-		schema := "http://"
-		if e.IsSsl {
-			schema = "https://"
-		}
-		parsedUrl, err := url.Parse(fmt.Sprintf("%s%s", schema, e.Endpoint))
-		if err != nil {
-			return nil, fmt.Errorf("url.Parse: %s", err)
-		}
-
-		urls = append(urls, parsedUrl)
-	}
-
-	return urls, nil
-}
-
-func (a *api) updateProxyEndpoints(transport *proxy.ProxyTransport) {
-	for {
-		urls, err := a.getEndpointsURLs(solanaBlockchain)
-		if err != nil {
-			log.Logger.Api.Logger.Fatalf("Cannot get endpoints from db: %s", err.Error())
-		}
-
-		transport.UpdateTargets(urls)
-		metrics.ObserveAvailableEndpoints(len(urls))
-
-		time.Sleep(endpointsReloadInterval)
-	}
 }

@@ -31,3 +31,5 @@ distribution.yml
 mock_*
 .env
 *.pem
+firebase.json
+/creds/*
