@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type GeoCountry struct {
 
 const geoCountriesTable = "geo.countries"
 
-func (p *PgStorage) GetOrCreateGeoCountry(alpha2, alpha3, name string) (id int, err error) {
+func (p *Storage) GetOrCreateGeoCountry(alpha2, alpha3, name string) (id int, err error) {
 	if alpha2 == "" {
 		return id, fmt.Errorf("empty alpha2")
 	}

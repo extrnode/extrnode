@@ -24,6 +24,7 @@ services:
       - "${API_METRICS_PORT}:${API_METRICS_PORT}"
     depends_on:
       - postgres
+      - clickhouse
     env_file:
       - .env
     entrypoint: "api"
@@ -43,5 +44,23 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
 
+  clickhouse:
+    container_name: extrnode-clickhouse
+    image: "clickhouse/clickhouse-server:23.1"
+    restart: always
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9009:9009"
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - ./build/clickhouse:/docker-entrypoint-initdb.d
+
 volumes:
   postgres:
+  clickhouse:

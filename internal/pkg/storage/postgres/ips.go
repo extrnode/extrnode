@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type IP struct {
 
 const ipsTable = "ips"
 
-func (p *PgStorage) GetOrCreateIP(networkID int, address net.IP) (id int, err error) {
+func (p *Storage) GetOrCreateIP(networkID int, address net.IP) (id int, err error) {
 	if networkID == 0 {
 		return id, fmt.Errorf("empty networkID")
 	}

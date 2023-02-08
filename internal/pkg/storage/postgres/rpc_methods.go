@@ -1,4 +1,4 @@
-package storage
+package postgres
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ type (
 
 const rpcMethodsTable = "rpc.methods"
 
-func (p *PgStorage) GetOrCreateRpcMethod(blockchainID int, name string) (id int, err error) {
+func (p *Storage) GetOrCreateRpcMethod(blockchainID int, name string) (id int, err error) {
 	if blockchainID == 0 {
 		return id, fmt.Errorf("empty blockchainID")
 	}
@@ -62,7 +62,7 @@ func (p *PgStorage) GetOrCreateRpcMethod(blockchainID int, name string) (id int,
 	return m.ID, nil
 }
 
-func (p *PgStorage) GetRpcMethodsMapByBlockchainID(blockchainID int) (res map[string]int, err error) {
+func (p *Storage) GetRpcMethodsMapByBlockchainID(blockchainID int) (res map[string]int, err error) {
 	if blockchainID == 0 {
 		return nil, fmt.Errorf("empty blockchainID")
 	}

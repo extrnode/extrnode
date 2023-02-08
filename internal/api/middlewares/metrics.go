@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"extrnode-be/internal/pkg/metrics"
+	"extrnode-be/internal/pkg/util/solana"
 )
 
 type MetricsContextConfig struct {
@@ -18,8 +19,6 @@ type MetricsContextConfig struct {
 	ProxyHasErrorContextKey     string
 	ReqDurationContextKey       string
 }
-
-const multipleValuesRequested = "multiple_values"
 
 func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -38,7 +37,7 @@ func NewMetricsMiddleware(config MetricsContextConfig) echo.MiddlewareFunc {
 
 			var rpcMethod string
 			if len(rpcMethods) > 1 {
-				rpcMethod = multipleValuesRequested
+				rpcMethod = solana.MultipleValuesRequested
 			} else if len(rpcMethods) == 1 {
 				rpcMethod = rpcMethods[0]
 			}

@@ -13,6 +13,7 @@ type Config struct {
 	Scanner ScannerConfig
 	API     ApiConfig
 	PG      PostgresConfig
+	CH      ClickhouseConfig
 }
 
 type ScannerConfig struct {
@@ -33,6 +34,10 @@ type PostgresConfig struct {
 	Pass           string `required:"true" split_words:"true"`
 	DB             string `required:"true" split_words:"true"`
 	MigrationsPath string `required:"true" split_words:"true"`
+}
+
+type ClickhouseConfig struct {
+	DSN string `required:"true" split_words:"true"`
 }
 
 // AddTarget adds an upstream target to the list.

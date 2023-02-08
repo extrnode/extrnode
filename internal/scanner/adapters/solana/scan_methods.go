@@ -7,12 +7,12 @@ import (
 	"github.com/gagliardetto/solana-go"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/postgres"
 )
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
+func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
 	err := a.storage.CreateScannerPeer(peer.ID, now, 0, isALive)
 	if err != nil {
 		return fmt.Errorf("CreateScannerPeer: %s", err)
@@ -37,7 +37,7 @@ func (a *SolanaAdapter) updatePeerInfo(peer storage.PeerWithIpAndBlockchain, now
 	return nil
 }
 
-func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) ScanMethods(peer postgres.PeerWithIpAndBlockchain) error {
 	now := time.Now()
 	methods, err := a.storage.GetRpcMethodsMapByBlockchainID(a.blockchainID)
 	if err != nil {
@@ -71,7 +71,7 @@ func (a *SolanaAdapter) ScanMethods(peer storage.PeerWithIpAndBlockchain) error 
 
 	isRpc := true
 	for mName, mID := range methods {
-		responseValid, responseTime, statusCode, err := a.checkRpcMethod(TopRpcMethod(mName), rpcClient)
+		responseValid, responseTime, statusCode, err := a.checkRpcMethod(mName, rpcClient)
 		if err != nil || !responseValid { // responseValid always == false when err != nil
 			if err != nil {
 				log.Logger.Scanner.Errorf("checkRpcMethod %s %s:%d: %s", mName, peer.Address, peer.Port, err)

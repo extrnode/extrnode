@@ -11,6 +11,8 @@ import (
 	"unicode"
 
 	"github.com/labstack/echo/v4"
+
+	"extrnode-be/internal/pkg/util/solana"
 )
 
 type ValidatorContextConfig struct {
@@ -52,10 +54,7 @@ func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 			decoder.UseNumber()
 
 			// save body before handling
-			if len(reqBody) > bodyLimit {
-				reqBody = reqBody[:bodyLimit]
-			}
-			c.Set(config.ReqBodyContextKey, reqBody)
+			c.Set(config.ReqBodyContextKey, string(reqBody))
 
 			var methodArray []string
 			switch fs := reqBody[0]; {
@@ -108,79 +107,11 @@ func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 	}
 }
 
-var FullMethodList = map[string]struct{}{
-	"getAccountInfo":                    {},
-	"getBalance":                        {},
-	"getBlock":                          {},
-	"getBlockHeight":                    {},
-	"getBlockProduction":                {},
-	"getBlockCommitment":                {},
-	"getBlocks":                         {},
-	"getBlocksWithLimit":                {},
-	"getBlockTime":                      {},
-	"getClusterNodes":                   {},
-	"getEpochInfo":                      {},
-	"getEpochSchedule":                  {},
-	"getFeeForMessage":                  {},
-	"getFirstAvailableBlock":            {},
-	"getGenesisHash":                    {},
-	"getHealth":                         {},
-	"getHighestSnapshotSlot":            {},
-	"getIdentity":                       {},
-	"getInflationGovernor":              {},
-	"getInflationRate":                  {},
-	"getInflationReward":                {},
-	"getLargestAccounts":                {},
-	"getLatestBlockhash":                {},
-	"getLeaderSchedule":                 {},
-	"getMaxRetransmitSlot":              {},
-	"getMaxShredInsertSlot":             {},
-	"getMinimumBalanceForRentExemption": {},
-	"getMultipleAccounts":               {},
-	"getProgramAccounts":                {},
-	"getRecentPerformanceSamples":       {},
-	"getRecentPrioritizationFees":       {},
-	"getSignaturesForAddress":           {},
-	"getSignatureStatuses":              {},
-	"getSlot":                           {},
-	"getSlotLeader":                     {},
-	"getSlotLeaders":                    {},
-	"getStakeActivation":                {},
-	"getStakeMinimumDelegation":         {},
-	"getSupply":                         {},
-	"getTokenAccountBalance":            {},
-	"getTokenAccountsByDelegate":        {},
-	"getTokenAccountsByOwner":           {},
-	"getTokenLargestAccounts":           {},
-	"getTokenSupply":                    {},
-	"getTransaction":                    {},
-	"getTransactionCount":               {},
-	"getVersion":                        {},
-	"getVoteAccounts":                   {},
-	"isBlockhashValid":                  {},
-	"minimumLedgerSlot":                 {},
-	"requestAirdrop":                    {},
-	"sendTransaction":                   {},
-	"simulateTransaction":               {},
-
-	// deprecated methods, but works now on solana mainnet
-	"getConfirmedBlock":                 {},
-	"getConfirmedBlocks":                {},
-	"getConfirmedBlocksWithLimit":       {},
-	"getConfirmedSignaturesForAddress2": {},
-	"getConfirmedTransaction":           {},
-	"getFeeCalculatorForBlockhash":      {},
-	"getFeeRateGovernor":                {},
-	"getFees":                           {},
-	"getRecentBlockhash":                {},
-	"getSnapshotSlot":                   {},
-}
-
 func checkJsonRpcBody(req RPCRequest) error {
 	if req.JSONRPC != jsonrpcVersion {
 		return errors.New("invalid version")
 	}
-	_, ok := FullMethodList[req.Method]
+	_, ok := solana.FullMethodList[req.Method]
 	if !ok {
 		// return understandable error for user
 		return fmt.Errorf("invalid method: %s", req.Method)

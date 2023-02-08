@@ -10,7 +10,7 @@ import (
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/postgres"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
 
@@ -26,7 +26,7 @@ var maxSupportedTransactionVersion uint64 = 0
 
 type SolanaAdapter struct {
 	ctx                    context.Context
-	storage                storage.PgStorage
+	storage                postgres.Storage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
 	signatureForAddress    solana.Signature
@@ -34,7 +34,7 @@ type SolanaAdapter struct {
 	baseRpcClient          *rpc.Client
 }
 
-func NewSolanaAdapter(ctx context.Context, storage storage.PgStorage) (*SolanaAdapter, error) {
+func NewSolanaAdapter(ctx context.Context, storage postgres.Storage) (*SolanaAdapter, error) {
 	blockchain, err := storage.GetBlockchainByName(solanaBlockchain)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainByName: %s", err)
@@ -58,7 +58,7 @@ func NewSolanaAdapter(ctx context.Context, storage storage.PgStorage) (*SolanaAd
 	return &sa, nil
 }
 
-func (a *SolanaAdapter) Scan(peer storage.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) Scan(peer postgres.PeerWithIpAndBlockchain) error {
 	err := a.ScanMethods(peer)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (a *SolanaAdapter) Scan(peer storage.PeerWithIpAndBlockchain) error {
 	return nil
 }
 
-func (a *SolanaAdapter) GetNewNodes(peer storage.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) GetNewNodes(peer postgres.PeerWithIpAndBlockchain) error {
 	if !peer.IsAlive || !peer.IsMainNet {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 const outdatedSlotShift = 15
 
 type peerWithSlot struct {
-	storage.PeerWithIpAndBlockchain
+	postgres.PeerWithIpAndBlockchain
 	currentSlot uint64
 }
 
@@ -160,7 +160,7 @@ func (a *SolanaAdapter) CheckOutdatedNodes() error {
 	res := make([]peerWithSlot, 0, len(peers))
 	wg.Add(len(peers))
 	for _, p := range peers {
-		go func(wg *sync.WaitGroup, p storage.PeerWithIpAndBlockchain) {
+		go func(wg *sync.WaitGroup, p postgres.PeerWithIpAndBlockchain) {
 			defer wg.Done()
 
 			rpcClient := createRpcWithTimeout(createNodeUrl(p, p.IsSSL))
