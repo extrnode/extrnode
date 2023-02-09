@@ -33,7 +33,7 @@ func NewLoggerMiddleware(saveLog func(ip, requestId string, statusCode int, late
 				log.Logger.Proxy.Errorf("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %v, attempts: %d, node_response_time: %dms, "+
 					"rpc_error_code: %v, error: %s, request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s, path: %s",
 					v.Status, v.Method, v.RequestID, v.Latency.Milliseconds(), cc.GetProxyEndpoint(), cc.GetReqMethods(), cc.GetProxyAttempts(), cc.GetProxyResponseTime(),
-					cc.GetRpcErrors(), v.Error, reqBody, cc.GetResBody(), v.RemoteIP, v.UserAgent, v.URI)
+					cc.GetRpcErrors(), errMsg(v.Error), reqBody, cc.GetResBody(), v.RemoteIP, v.UserAgent, v.URI)
 			} else {
 				log.Logger.Proxy.Infof("%d %s, id: %s, latency: %d, endpoint: %s, rpc_method: %v, attempts: %d, node_response_time: %dms, "+
 					"request_body: %s, response_body: %s, remote_ip: %s, user_agent: %s, path: %s",

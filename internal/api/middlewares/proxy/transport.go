@@ -102,7 +102,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 
 		target, err = ptc.transport.NextAvailableTarget()
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, err.Error()) // need text from err
+			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, middlewares.ExtraNodeNoAvailableTargetsErrorResponse)
 		}
 
 		// modify req url

@@ -3,13 +3,12 @@ package middlewares
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"unicode"
 
+	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/labstack/echo/v4"
 
 	"extrnode-be/internal/pkg/util/solana"
@@ -25,7 +24,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			cc := c.(*CustomContext)
 			if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
-				return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Invalid content-type, this application only supports application/json")
+				return echo.NewHTTPError(http.StatusUnsupportedMediaType, invalidContentTypeErrorResponse)
 			}
 
 			// Request
@@ -42,7 +41,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				return r
 			}, string(reqBody)))
 			if len(reqBody) == 0 {
-				return fmt.Errorf("empty body")
+				return echo.NewHTTPError(http.StatusOK, ParseErrorResponse) // solana mainnet return parse err in this case
 			}
 
 			decoder := json.NewDecoder(bytes.NewBuffer(reqBody))
@@ -57,20 +56,16 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				parsedJson := RPCRequest{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
-					// TODO: return 200 and {
-					//    "jsonrpc": "2.0",
-					//    "error": {
-					//        "code": -32600,
-					//        "message": "Invalid request"
-					//    },
-					//    "id": 1
-					//}
-					return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("unmarshal: %s", err))
+					return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
 				}
 
-				err = checkJsonRpcBody(parsedJson)
-				if err != nil {
-					return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err))
+				rpcErr := checkJsonRpcBody(parsedJson)
+				if rpcErr != nil {
+					return echo.NewHTTPError(http.StatusOK, RPCResponse{
+						Error:   rpcErr,
+						JSONRPC: jsonrpcVersion,
+						ID:      parsedJson.ID,
+					})
 				}
 
 				methodArray = append(methodArray, parsedJson.Method)
@@ -78,21 +73,25 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				parsedJson := RPCRequests{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
-					return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("unmarshal: %s", err))
+					return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
 				}
 
 				for _, r := range parsedJson {
 					if r == nil {
 						continue
 					}
-					err = checkJsonRpcBody(*r)
-					if err != nil {
-						return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err))
+					rpcErr := checkJsonRpcBody(*r)
+					if rpcErr != nil {
+						return echo.NewHTTPError(http.StatusOK, RPCResponse{
+							Error:   rpcErr,
+							JSONRPC: jsonrpcVersion,
+							ID:      r.ID,
+						})
 					}
 					methodArray = append(methodArray, r.Method)
 				}
 			default:
-				return fmt.Errorf("invalid json first symbol: %s", string(fs))
+				return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
 			}
 			cc.SetReqMethods(methodArray)
 
@@ -101,14 +100,13 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-func checkJsonRpcBody(req RPCRequest) error {
+func checkJsonRpcBody(req RPCRequest) *jsonrpc.RPCError {
 	if req.JSONRPC != jsonrpcVersion {
-		return errors.New("invalid version")
+		return invalidReqError
 	}
 	_, ok := solana.FullMethodList[req.Method]
 	if !ok {
-		// return understandable error for user
-		return fmt.Errorf("invalid method: %s", req.Method)
+		return methodNotFoundError
 	}
 
 	return nil
