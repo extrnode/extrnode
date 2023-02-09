@@ -47,7 +47,7 @@ type api struct {
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
 	apiPrivateKey          solana.PrivateKey
-	logCollector *log_collector.Collector
+	logCollector           *log_collector.Collector
 }
 
 const (
@@ -105,9 +105,9 @@ func NewAPI(cfg config.Config) (*api, error) {
 			csvOutputFormat:     {},
 			haproxyOutputFormat: {},
 		},
-		blockchainIDs:   blockchainsMap,
-		apiPrivateKey:   privKey,
-		logCollector: log_collector.NewCollector(ctx, chStorage),
+		blockchainIDs: blockchainsMap,
+		apiPrivateKey: privKey,
+		logCollector:  log_collector.NewCollector(ctx, chStorage),
 	}
 
 	if cfg.API.CertFile != "" {
@@ -208,7 +208,8 @@ func (a *api) initApiHandlers() error {
 	go a.updateProxyEndpoints(transport)
 
 	// proxy
-	generalGroup.POST("/", nil,
+	// without cors
+	a.router.POST("/", nil,
 		middlewares.RequestDurationMiddleware(),
 		middlewares.RequestIDMiddleware(),
 		middlewares.NewLoggerMiddleware(a.logCollector.AddStat),
