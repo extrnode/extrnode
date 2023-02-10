@@ -51,14 +51,20 @@ SCANNER_THREADS_NUM=20
 # api 
 # servert port
 API_PORT=8000
-# port for prometheus metrics (optional; 0 or empty value - disable metrics)
-API_METRICS_PORT=9099
 # path to certs for https (optional)
 API_CERT_FILE=creds/api.pem
-# failover endpoints for proxy. Json encoded object array (optional)
-API_FAILOVER_ENDPOINTS=[{"url":"http://127.0.0.1:8001","reqLimitHourly":1},{"url":"http://127.0.0.1","reqLimitHourly":2}]
 # config file for firebase
 API_FIREBASE_FILE_PATH=creds/firebase.json
+
+# proxy
+# servert port
+PROXY_PORT=8001
+# port for prometheus metrics (optional; 0 or empty value - disable metrics)
+PROXY_METRICS_PORT=9099
+# path to certs for https (optional)
+PROXY_CERT_FILE=creds/api.pem
+# failover endpoints for proxy. Json encoded object array (optional)
+PROXY_FAILOVER_ENDPOINTS=[{"url":"http://127.0.0.1:8001","reqLimitHourly":1},{"url":"http://127.0.0.1","reqLimitHourly":2}]
 
 # postgres database connection properties
 PG_HOST=localhost

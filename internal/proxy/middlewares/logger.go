@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"extrnode-be/internal/pkg/log"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 )
 
 func NewLoggerMiddleware(saveLog func(ip, requestId string, statusCode int, latency int64, endpoint string, attempts int, responseTime int64, rpcMethods []string, rpcErrorCodes []int, userAgent, reqBody string)) echo.MiddlewareFunc {
@@ -20,7 +21,7 @@ func NewLoggerMiddleware(saveLog func(ip, requestId string, statusCode int, late
 		LogUserAgent: true,
 		LogURI:       true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			cc := c.(*CustomContext)
+			cc := c.(*echo2.CustomContext)
 			saveLog(v.RemoteIP, v.RequestID, v.Status, v.Latency.Milliseconds(), cc.GetProxyEndpoint(), cc.GetProxyAttempts(), cc.GetProxyResponseTime(), cc.GetReqMethods(), cc.GetRpcErrors(), v.UserAgent, string(cc.GetReqBody()))
 
 			// truncate before log

@@ -24,13 +24,31 @@ services:
     tty: true
     ports:
       - "${API_PORT}:${API_PORT}"
-      - "${API_METRICS_PORT}:${API_METRICS_PORT}"
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    entrypoint: "api"
+    command:
+      - -log=debug
+    logging:
+      options:
+        max-size: "1g"
+
+  extrnode-proxy:
+    container_name: extrnode-proxy
+    image: extrnode-go:latest
+    restart: always
+    tty: true
+    ports:
+      - "${PROXY_PORT}:${PROXY_PORT}"
+      - "${PROXY_METRICS_PORT}:${PROXY_METRICS_PORT}"
     depends_on:
       - postgres
       - clickhouse
     env_file:
       - .env
-    entrypoint: "api"
+    entrypoint: "proxy"
     command:
       - -log=debug
     logging:

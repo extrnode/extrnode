@@ -11,6 +11,7 @@ import (
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/labstack/echo/v4"
 
+	echo2 "extrnode-be/internal/pkg/util/echo"
 	"extrnode-be/internal/pkg/util/solana"
 )
 
@@ -22,7 +23,7 @@ const (
 func NewValidatorMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			cc := c.(*CustomContext)
+			cc := c.(*echo2.CustomContext)
 			if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
 				return echo.NewHTTPError(http.StatusUnsupportedMediaType, invalidContentTypeErrorResponse)
 			}
@@ -41,7 +42,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				return r
 			}, string(reqBody)))
 			if len(reqBody) == 0 {
-				return echo.NewHTTPError(http.StatusOK, ParseErrorResponse) // solana mainnet return parse err in this case
+				return echo.NewHTTPError(http.StatusOK, parseErrorResponse) // solana mainnet return parse err in this case
 			}
 
 			decoder := json.NewDecoder(bytes.NewBuffer(reqBody))
@@ -56,7 +57,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				parsedJson := RPCRequest{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
-					return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
+					return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 				}
 
 				rpcErr := checkJsonRpcBody(parsedJson)
@@ -67,13 +68,12 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 						ID:      parsedJson.ID,
 					})
 				}
-
 				methodArray = append(methodArray, parsedJson.Method)
 			case fs == '[':
 				parsedJson := RPCRequests{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
-					return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
+					return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 				}
 
 				for _, r := range parsedJson {
@@ -91,7 +91,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 					methodArray = append(methodArray, r.Method)
 				}
 			default:
-				return echo.NewHTTPError(http.StatusOK, ParseErrorResponse)
+				return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 			}
 			cc.SetReqMethods(methodArray)
 

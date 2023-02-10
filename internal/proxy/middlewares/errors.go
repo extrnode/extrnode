@@ -1,4 +1,4 @@
-package proxy
+package middlewares
 
 import (
 	"bytes"
@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
-
-	"extrnode-be/internal/api/middlewares"
 )
 
 var ErrInvalidRequest = errors.New("invalid request")
@@ -42,8 +40,6 @@ const (
 	jsonMsgNullString = "null"
 )
 
-const bodyLimit = 1000
-
 func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Response) (errs []error) {
 	body, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
@@ -72,7 +68,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 	var errCodes []int
 	switch fs := body[0]; {
 	case fs == '{':
-		var rpcResponse middlewares.RPCResponse
+		var rpcResponse RPCResponse
 		rpcMethod := ptc.c.GetReqMethod()
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
@@ -96,7 +92,7 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 			errs = append(errs, fmt.Errorf("empty response field"))
 		}
 	case fs == '[':
-		var rpcResponse middlewares.RPCResponses
+		var rpcResponse RPCResponses
 		rpcMethods := ptc.c.GetReqMethods()
 		err = decoder.Decode(&rpcResponse)
 		if err != nil {
