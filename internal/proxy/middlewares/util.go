@@ -40,14 +40,14 @@ func errMsg(err error) string {
 }
 
 var (
-	ParseErrorResponse = &RPCResponse{
+	parseErrorResponse = &RPCResponse{
 		Error: &jsonrpc.RPCError{
 			Code:    -32700,
 			Message: "Parse error",
 		},
 		JSONRPC: jsonrpcVersion,
 	}
-	ExtraNodeNoAvailableTargetsErrorResponse = &RPCResponse{
+	extraNodeNoAvailableTargetsErrorResponse = &RPCResponse{
 		Error: &jsonrpc.RPCError{
 			Code:    2000,
 			Message: "No available targets",

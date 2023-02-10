@@ -1,4 +1,4 @@
-package proxy
+package middlewares
 
 import (
 	"bytes"
@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 
 	"github.com/labstack/echo/v4"
 )
@@ -34,7 +34,7 @@ type ProxyTransport struct {
 
 type proxyTransportWithContext struct {
 	transport *ProxyTransport
-	c         *middlewares.CustomContext
+	c         *echo2.CustomContext
 }
 
 const (
@@ -78,7 +78,7 @@ func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*
 func (pt *ProxyTransport) WithContext(c echo.Context) *proxyTransportWithContext {
 	return &proxyTransportWithContext{
 		transport: pt,
-		c:         c.(*middlewares.CustomContext),
+		c:         c.(*echo2.CustomContext),
 	}
 }
 
@@ -102,7 +102,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 
 		target, err = ptc.transport.NextAvailableTarget()
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, middlewares.ExtraNodeNoAvailableTargetsErrorResponse)
+			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, extraNodeNoAvailableTargetsErrorResponse)
 		}
 
 		// modify req url

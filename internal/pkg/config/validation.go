@@ -9,6 +9,9 @@ func (c Config) validate() error {
 	if err := c.API.validate(); err != nil {
 		return fmt.Errorf("api: %s", err)
 	}
+	if err := c.Proxy.validate(); err != nil {
+		return fmt.Errorf("proxy: %s", err)
+	}
 	if err := c.PG.validate(); err != nil {
 		return fmt.Errorf("postgres: %s", err)
 	}
@@ -26,7 +29,15 @@ func (a ApiConfig) validate() error {
 	if a.Port == 0 {
 		return errors.New("invalid port")
 	}
-	for _, h := range a.FailoverEndpoints {
+
+	return nil
+}
+
+func (p ProxyConfig) validate() error {
+	if p.Port == 0 {
+		return errors.New("invalid port")
+	}
+	for _, h := range p.FailoverEndpoints {
 		if h.Url == "" {
 			return errors.New("invalid failover endpoints")
 		}

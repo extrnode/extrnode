@@ -5,12 +5,12 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/log"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 )
 
 func (a *api) apiTokenHandler(ctx echo.Context) error {
-	cc := ctx.(*middlewares.CustomContext)
+	cc := ctx.(*echo2.CustomContext)
 	user := cc.GetUser()
 	if user == nil {
 		log.Logger.Api.Errorf("apiTokenHandler: fail to get user from context")

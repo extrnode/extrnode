@@ -15,6 +15,7 @@ import (
 
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 )
 
 type AuthMiddleware struct {
@@ -120,7 +121,7 @@ func (a *AuthMiddleware) LoadUser(next echo.HandlerFunc) echo.HandlerFunc {
 			return ErrUserNotFound
 		}
 
-		c.(*CustomContext).SetUser(user)
+		c.(*echo2.CustomContext).SetUser(user)
 
 		return next(c)
 	}

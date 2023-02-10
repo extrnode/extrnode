@@ -13,7 +13,7 @@ func RequestIDMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			rid, err := uuid.NewRandom()
 			if err != nil {
-				log.Logger.Api.Errorf("uuid.NewRandom: %s", err)
+				log.Logger.Proxy.Errorf("uuid.NewRandom: %s", err)
 			}
 
 			c.Request().Header.Set(echo.HeaderXRequestID, rid.String()) // prevent reading the custom id by the logger middleware

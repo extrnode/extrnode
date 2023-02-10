@@ -6,13 +6,14 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"extrnode-be/internal/pkg/metrics"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 )
 
 func NewMetricsMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			err := next(c)
-			cc := c.(*CustomContext)
+			cc := c.(*echo2.CustomContext)
 
 			rpcMethod := cc.GetReqMethod()
 			success := !cc.GetProxyHasError() || cc.GetProxyUserError()

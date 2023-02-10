@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Scanner ScannerConfig
 	API     ApiConfig
+	Proxy   ProxyConfig
 	PG      PostgresConfig
 	CH      ClickhouseConfig
 }
@@ -20,12 +21,17 @@ type ScannerConfig struct {
 	ThreadsNum int `required:"true" split_words:"true"`
 }
 
-type ApiConfig struct {
+type ProxyConfig struct {
 	Port              uint64          `required:"true" split_words:"true"`
 	MetricsPort       uint64          `required:"false" split_words:"true"`
 	CertFile          string          `required:"false" split_words:"true"`
 	FailoverEndpoints FailoverTargets `required:"false" split_words:"true"`
-	FirebaseFilePath  string          `required:"true" split_words:"true"`
+}
+
+type ApiConfig struct {
+	Port             uint64 `required:"true" split_words:"true"`
+	CertFile         string `required:"false" split_words:"true"`
+	FirebaseFilePath string `required:"true" split_words:"true"`
 }
 
 type PostgresConfig struct {

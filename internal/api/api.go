@@ -10,19 +10,15 @@ import (
 	"time"
 
 	"github.com/gagliardetto/solana-go"
-	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	log2 "github.com/labstack/gommon/log"
 	"github.com/patrickmn/go-cache"
 
-	"extrnode-be/internal/api/log_collector"
+	echo2 "extrnode-be/internal/pkg/util/echo"
+
 	"extrnode-be/internal/api/middlewares"
-	"extrnode-be/internal/api/middlewares/proxy"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/metrics"
-	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/postgres"
 )
 
@@ -32,22 +28,18 @@ import (
 var swaggerDist embed.FS
 
 type api struct {
-	conf          config.ApiConfig
-	metricsPort   uint64
-	certData      []byte
-	router        *echo.Echo
-	metricsServer *echo.Echo
-	pgStorage     postgres.Storage
-	chStorage     clickhouse.Storage
-	cache         *cache.Cache
-	waitGroup     *sync.WaitGroup
-	ctx           context.Context
-	ctxCancel     context.CancelFunc
+	conf      config.ApiConfig
+	certData  []byte
+	router    *echo.Echo
+	pgStorage postgres.Storage
+	cache     *cache.Cache
+	waitGroup *sync.WaitGroup
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 
 	supportedOutputFormats map[string]struct{}
 	blockchainIDs          map[string]int
 	apiPrivateKey          solana.PrivateKey
-	logCollector           *log_collector.Collector
 }
 
 const (
@@ -55,13 +47,9 @@ const (
 	csvOutputFormat     = "csv"
 	haproxyOutputFormat = "haproxy"
 
-	cacheTTL        = 5 * time.Minute
-	apiReadTimeout  = 5 * time.Second
-	apiWriteTimeout = 30 * time.Second
+	cacheTTL = 5 * time.Minute
 
 	serverShutdownTimeout = 10 * time.Second
-
-	endpointsReloadInterval = 5 * time.Minute
 )
 
 func NewAPI(cfg config.Config) (*api, error) {
@@ -72,10 +60,6 @@ func NewAPI(cfg config.Config) (*api, error) {
 	pgStorage, err := postgres.New(ctx, cfg.PG)
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
-	}
-	chStorage, err := clickhouse.New(cfg.CH.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
 
 	blockchainsMap, err := pgStorage.GetBlockchainsMap()
@@ -90,12 +74,10 @@ func NewAPI(cfg config.Config) (*api, error) {
 	}
 
 	a := &api{
-		conf:          cfg.API,
-		router:        echo.New(),
-		metricsServer: echo.New(),
-		pgStorage:     pgStorage,
-		chStorage:     chStorage,
-		cache:         cache.New(cacheTTL, cacheTTL),
+		conf:      cfg.API,
+		router:    echo.New(),
+		pgStorage: pgStorage,
+		cache:     cache.New(cacheTTL, cacheTTL),
 
 		waitGroup: &sync.WaitGroup{},
 		ctx:       ctx,
@@ -107,7 +89,6 @@ func NewAPI(cfg config.Config) (*api, error) {
 		},
 		blockchainIDs: blockchainsMap,
 		apiPrivateKey: privKey,
-		logCollector:  log_collector.NewCollector(ctx, chStorage),
 	}
 
 	if cfg.API.CertFile != "" {
@@ -117,77 +98,21 @@ func NewAPI(cfg config.Config) (*api, error) {
 		}
 	}
 
-	a.setupServer()
+	echo2.SetupServer(a.router)
 
 	err = a.initApiHandlers()
-
-	go a.logCollector.StartStatSaver()
 
 	return a, err
 }
 
-func (a *api) setupServer() {
-	a.router.Server.ReadTimeout = apiReadTimeout
-	a.router.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
-	a.router.Logger.SetLevel(log2.OFF)
-
-	a.metricsServer.Server.ReadTimeout = apiReadTimeout
-	a.metricsServer.Server.WriteTimeout = apiWriteTimeout + 2*time.Second // must be greater than apiWriteTimeout, which used for timeout middleware
-	a.metricsServer.Logger.SetLevel(log2.OFF)
-}
-
-func (a *api) initMetrics() {
-	a.metricsServer.HideBanner = true
-	a.metricsServer.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{
-		DisableStackAll: true,
-		LogErrorFunc:    logPanic,
-	}))
-	a.metricsServer.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogStatus: true,
-		LogMethod: true,
-		LogError:  true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			if v.Error != nil {
-				log.Logger.Api.Errorf("metrics: code %d method %s: %s", v.Status, v.Method, v.Error)
-			}
-			return nil
-		},
-	}))
-
-	prom := prometheus.NewPrometheus("extrnode", nil, metrics.MetricList())
-	// Setup metrics endpoint at another server
-	prom.SetMetricsPath(a.metricsServer)
-
-	metrics.InitStartTime()
-}
-
 func (a *api) initApiHandlers() error {
-	a.router.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{
-		DisableStackAll: true,
-		LogErrorFunc:    logPanic,
-	}))
-	a.router.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			return next(&middlewares.CustomContext{
-				Context: c,
-			})
-		}
-	})
-	a.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
-		ErrorMessage: "Request Timeout",
-		Timeout:      apiWriteTimeout,
-	}))
-
-	// prometheus metrics
-	a.initMetrics()
-
-	// general rate limit
-	a.router.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20))) // req per second
+	echo2.InitHandlersStart(a.router)
 
 	generalGroup := a.router.Group("", middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
+
 	// public
 	generalGroup.GET("/endpoints", a.endpointsHandler)
 	generalGroup.GET("/stats", a.statsHandler)
@@ -199,24 +124,6 @@ func (a *api) initApiHandlers() error {
 	}
 	protectedGroup := generalGroup.Group("", aMw.LoadUser)
 	protectedGroup.GET("/api_token", a.apiTokenHandler)
-
-	transport, err := proxy.NewProxyTransport(false, a.conf.FailoverEndpoints)
-	if err != nil {
-		return err
-	}
-
-	go a.updateProxyEndpoints(transport)
-
-	// proxy
-	// without cors
-	a.router.POST("/", nil,
-		middlewares.RequestDurationMiddleware(),
-		middlewares.RequestIDMiddleware(),
-		middlewares.NewLoggerMiddleware(a.logCollector.AddStat),
-		middlewares.NewMetricsMiddleware(),
-		middlewares.NewValidatorMiddleware(),
-		proxy.NewProxyMiddleware(transport),
-	)
 
 	// api docs
 	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
@@ -238,23 +145,10 @@ func (a *api) Run() (err error) {
 	return nil
 }
 
-func (a *api) RunMetrics() (err error) {
-	if a.conf.MetricsPort == 0 {
-		return nil
-	}
-	err = a.metricsServer.Start(fmt.Sprintf(":%d", a.conf.MetricsPort))
-	if err != http.ErrServerClosed {
-		return err
-	}
-
-	return nil
-}
-
 func (a *api) Stop() error {
 	ctx, cancel := context.WithTimeout(a.ctx, serverShutdownTimeout)
 	defer cancel()
 
-	go a.metricsServer.Shutdown(ctx)
 	err := a.router.Shutdown(ctx)
 	if err != nil {
 		log.Logger.Api.Errorf("router.Shutdown: %s", err)

@@ -1,4 +1,4 @@
-package proxy
+package middlewares
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"extrnode-be/internal/api/middlewares"
+	echo2 "extrnode-be/internal/pkg/util/echo"
 )
 
 func NewProxyMiddleware(transport *ProxyTransport) echo.MiddlewareFunc {
@@ -61,7 +61,7 @@ type responseModifier struct{}
 
 func (rm *responseModifier) WithContext(c echo.Context) func(*http.Response) error {
 	return func(res *http.Response) error {
-		cc := c.(*middlewares.CustomContext)
+		cc := c.(*echo2.CustomContext)
 
 		res.Header.Set(headerNodeEndpoint, cc.GetProxyEndpoint())
 		res.Header.Set(headerNodeReqAttempts, fmt.Sprintf("%d", cc.GetProxyAttempts()))

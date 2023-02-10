@@ -12,10 +12,10 @@ import (
 	"github.com/gagliardetto/solana-go"
 	"golang.org/x/crypto/blake2b"
 
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	solana2 "extrnode-be/internal/pkg/util/solana"
+	"extrnode-be/internal/proxy/middlewares"
 )
 
 const (

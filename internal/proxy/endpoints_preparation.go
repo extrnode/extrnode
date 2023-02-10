@@ -1,4 +1,4 @@
-package api
+package proxy
 
 import (
 	"fmt"
@@ -6,19 +6,19 @@ import (
 	"sort"
 	"time"
 
-	"extrnode-be/internal/api/middlewares/proxy"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
+	"extrnode-be/internal/proxy/middlewares"
 )
 
-func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
-	blockchainID, ok := a.blockchainIDs[blockchain]
+func (p *proxy) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
+	blockchainID, ok := p.blockchainIDs[blockchain]
 	if !ok {
 		return nil, fmt.Errorf("fail to get blockchainID")
 	}
 	isRpc := true
 
-	endpoints, err := a.pgStorage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
+	endpoints, err := p.pgStorage.GetEndpoints(blockchainID, 0, &isRpc, nil, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetEndpoints: %s", err)
 	}
@@ -46,11 +46,11 @@ func (a *api) getEndpointsURLs(blockchain string) ([]*url.URL, error) {
 	return urls, nil
 }
 
-func (a *api) updateProxyEndpoints(transport *proxy.ProxyTransport) {
+func (p *proxy) updateProxyEndpoints(transport *middlewares.ProxyTransport) {
 	for {
-		urls, err := a.getEndpointsURLs(solanaBlockchain)
+		urls, err := p.getEndpointsURLs(solanaBlockchain)
 		if err != nil {
-			log.Logger.Api.Logger.Fatalf("Cannot get endpoints from db: %s", err.Error())
+			log.Logger.Proxy.Logger.Fatalf("Cannot get endpoints from db: %s", err.Error())
 		}
 
 		transport.UpdateTargets(urls)
