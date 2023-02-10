@@ -186,7 +186,7 @@ func (a *api) initApiHandlers() error {
 
 	generalGroup := a.router.Group("", middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 	// public
 	generalGroup.GET("/endpoints", a.endpointsHandler)
