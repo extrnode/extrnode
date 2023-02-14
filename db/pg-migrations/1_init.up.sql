@@ -48,7 +48,7 @@ create table if not exists geo.networks
 	ntw_id serial not null
 		constraint networks_pk
 			primary key,
-	cnt_id integer
+	cnt_id integer not null
 		constraint networks_countries_cnt_id_fk
 			references geo.countries
 				on update cascade on delete restrict,
@@ -66,7 +66,7 @@ create table if not exists ips
 	ip_id serial not null
 		constraint ips_pk
 			primary key,
-	ntw_id integer
+	ntw_id integer not null
 		constraint ips_networks_ntw_id_fk
 			references geo.networks
 				on update cascade on delete restrict,
@@ -207,7 +207,7 @@ INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchai
 INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountsByOwner');
 
 -- initial solana host
-INSERT INTO geo.countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('SG', 'SGP', 'Singapore');
-INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo.countries WHERE cnt_alpha2 = 'SG'), '122.11.149.0/24', 4657, 'STARHUB-INTERNET StarHub Ltd, SG');
-INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo.networks WHERE ntw_mask = '122.11.149.0/24'), '122.11.149.168');
-INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '122.11.149.0/24') AND ip_addr = '122.11.149.168'), 8899, '1.13.5', true, true, false, true, 'Htypy9WC7gMMt2F8qExtg9Hc6NSxW5XZ59QCB89fqrWR', false);
+INSERT INTO geo.countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('US', 'USA', 'United States');
+INSERT INTO geo.networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo.countries WHERE cnt_alpha2 = 'US'), '107.155.92.0/24', 29802, 'HVC-AS, US');
+INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo.networks WHERE ntw_mask = '107.155.92.0/24'), '107.155.92.114');
+INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo.networks WHERE ntw_mask = '107.155.92.0/24') AND ip_addr = '107.155.92.114'), 80, '1.13.5', true, true, false, true, '', false);
