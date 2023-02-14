@@ -25,20 +25,28 @@ const (
 
 type Collector struct {
 	ctx       context.Context
-	chStorage clickhouse.Storage
+	chStorage *clickhouse.Storage
 	cache     []clickhouse.Stat
 	mx        sync.Mutex
 }
 
-func NewCollector(ctx context.Context, chStorage clickhouse.Storage) *Collector {
-	return &Collector{
+func NewCollector(ctx context.Context, chStorage *clickhouse.Storage) (c *Collector) {
+	c = &Collector{
 		ctx:       ctx,
 		chStorage: chStorage,
 		cache:     make([]clickhouse.Stat, 0, flushAmount),
 	}
+
+	if chStorage == nil {
+		return
+	}
+
+	go c.startStatSaver()
+
+	return
 }
 
-func (c *Collector) StartStatSaver() {
+func (c *Collector) startStatSaver() {
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -52,6 +60,11 @@ func (c *Collector) StartStatSaver() {
 }
 
 func (c *Collector) AddStat(ip, requestId string, statusCode int, latency int64, endpoint string, attempts int, responseTime int64, rpcMethods []string, rpcErrorCodes []int, userAgent, reqBody string) {
+	// if ch not set
+	if c.chStorage == nil {
+		return
+	}
+
 	var rpcMethod string
 	if len(rpcMethods) > 1 {
 		rpcMethod = solana2.MultipleValuesRequested
@@ -98,6 +111,9 @@ func (c *Collector) getCachedStats() (s []clickhouse.Stat) {
 }
 
 func (c *Collector) flushStats() {
+	if c.chStorage == nil {
+		return
+	}
 	entries := c.getCachedStats()
 	if len(entries) == 0 {
 		return

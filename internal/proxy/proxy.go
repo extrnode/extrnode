@@ -33,7 +33,6 @@ type proxy struct {
 	router        *echo.Echo
 	metricsServer *echo.Echo
 	pgStorage     postgres.Storage
-	chStorage     clickhouse.Storage
 	waitGroup     *sync.WaitGroup
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
@@ -73,7 +72,6 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		router:        echo.New(),
 		metricsServer: echo.New(),
 		pgStorage:     pgStorage,
-		chStorage:     chStorage,
 
 		waitGroup:       &sync.WaitGroup{},
 		ctx:             ctx,
@@ -93,9 +91,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 	p.setupServer()
 
 	err = p.initProxyHandlers()
-
-	go p.logCollector.StartStatSaver()
-
+	
 	return p, err
 }
 
