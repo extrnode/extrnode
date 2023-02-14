@@ -95,5 +95,12 @@ const (
 	GetTransactionCount               = "getTransactionCount"
 	GetTokenAccountsByOwner           = "getTokenAccountsByOwner"
 	GetBlock                          = "getBlock"
+	GetBlocks                         = "getBlocks"
+	GetBlocksWithLimit                = "getBlocksWithLimit"
 	GetVersion                        = "getVersion"
+	GetTokenLargestAccounts           = "getTokenLargestAccounts"
+	GetBlockCommitment                = "getBlockCommitment"
+	GetStakeActivation                = "getStakeActivation"
+	GetTokenAccountsByDelegate        = "getTokenAccountsByDelegate"
+	GetTokenSupply                    = "getTokenSupply"
 )
