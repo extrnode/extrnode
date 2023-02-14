@@ -135,7 +135,6 @@ func (p *proxy) initProxyHandlers() error {
 	// forked cors middleware
 	p.router.Use(middlewares.CORSWithConfig(middlewares.CORSConfig{
 		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
 	// prometheus metrics
