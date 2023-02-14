@@ -131,9 +131,16 @@ func getContextValueForRequest(rpcMethod, reqBody string) (res string) {
 	}
 
 	switch parsedJson.Method {
-	case solana2.GetSignaturesForAddress, solana2.GetTokenAccountsByOwner, solana2.GetAccountInfo, solana2.GetProgramAccounts, solana2.SendTransaction:
+	case solana2.GetSignaturesForAddress, solana2.GetTokenAccountsByOwner, solana2.GetAccountInfo, solana2.GetProgramAccounts, solana2.SendTransaction,
+		solana2.GetStakeActivation, solana2.GetTokenAccountBalance, solana2.GetTokenAccountsByDelegate, solana2.GetTokenLargestAccounts,
+		solana2.GetTokenSupply, solana2.IsBlockhashValid, solana2.GetTransaction, solana2.GetBalance:
 		if paramsArr, ok := parsedJson.Params.([]interface{}); ok && len(paramsArr) > 0 {
 			res, _ = paramsArr[0].(string)
+		}
+	case solana2.GetBlock, solana2.GetBlocks, solana2.GetBlockCommitment, solana2.GetBlocksWithLimit, solana2.GetBlockTime:
+		if paramsArr, ok := parsedJson.Params.([]interface{}); ok && len(paramsArr) > 0 {
+			resNumber, _ := paramsArr[0].(json.Number)
+			res = resNumber.String()
 		}
 	}
 
