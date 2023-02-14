@@ -108,25 +108,25 @@ func NewAPI(cfg config.Config) (*api, error) {
 func (a *api) initApiHandlers() error {
 	echo2.InitHandlersStart(a.router)
 
-	generalGroup := a.router.Group("", middleware.CORSWithConfig(middleware.CORSConfig{
+	a.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
 	// public
-	generalGroup.GET("/endpoints", a.endpointsHandler)
-	generalGroup.GET("/stats", a.statsHandler)
+	a.router.GET("/endpoints", a.endpointsHandler)
+	a.router.GET("/stats", a.statsHandler)
+
+	// api docs
+	a.router.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
 
 	// protected
 	aMw, err := middlewares.NewAuthMiddleware(a.ctx, a.conf)
 	if err != nil {
 		return fmt.Errorf("NewAuthMiddleware: %s", err)
 	}
-	protectedGroup := generalGroup.Group("", aMw.LoadUser)
+	protectedGroup := a.router.Group("", aMw.LoadUser)
 	protectedGroup.GET("/api_token", a.apiTokenHandler)
-
-	// api docs
-	generalGroup.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
 
 	return nil
 }
