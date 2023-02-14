@@ -44,7 +44,7 @@ type PostgresConfig struct {
 }
 
 type ClickhouseConfig struct {
-	DSN string `required:"true" split_words:"true"`
+	DSN string `required:"false" split_words:"true"`
 }
 
 // AddTarget adds an upstream target to the list.

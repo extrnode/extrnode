@@ -55,9 +55,9 @@ func (p PostgresConfig) validate() error {
 }
 
 func (c ClickhouseConfig) validate() error {
-	if c.DSN == "" {
-		return fmt.Errorf("invalid dsn")
-	}
+	//if c.DSN == "" {
+	//	return fmt.Errorf("invalid dsn")
+	//}
 
 	return nil
 }
