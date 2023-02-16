@@ -50,9 +50,8 @@ func (p *proxy) updateProxyEndpoints(transport *middlewares.ProxyTransport) {
 	for {
 		urls, err := p.getEndpointsURLs(solanaBlockchain)
 		if err != nil {
-			log.Logger.Proxy.Logger.Fatalf("Cannot get endpoints from db: %s", err.Error())
+			log.Logger.Proxy.Logger.Errorf("Cannot get endpoints from db: %s", err.Error()) // the algorithm will go ahead and clear all targers, therefore continue not needed
 		}
-
 		transport.UpdateTargets(urls)
 		metrics.ObserveAvailableEndpoints(len(urls))
 
