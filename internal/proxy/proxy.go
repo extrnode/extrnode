@@ -91,7 +91,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 	p.setupServer()
 
 	err = p.initProxyHandlers()
-	
+
 	return p, err
 }
 
@@ -136,9 +136,14 @@ func (p *proxy) initProxyHandlers() error {
 	// prometheus metrics
 	p.initMetrics()
 
-	transport, err := middlewares.NewProxyTransport(false, p.failoverTargets)
+	scannedMethodList, err := p.getScannedMethods()
 	if err != nil {
-		return err
+		return fmt.Errorf("getScannedMethods: %s", err)
+	}
+
+	transport, err := middlewares.NewProxyTransport(false, p.failoverTargets, scannedMethodList)
+	if err != nil {
+		return fmt.Errorf("NewProxyTransport: %s", err)
 	}
 	go p.updateProxyEndpoints(transport)
 

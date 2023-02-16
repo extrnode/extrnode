@@ -29,12 +29,21 @@ type ProxyTransport struct {
 	failoverTargets []*proxyTarget
 	fi              int
 
-	sync.Mutex
+	scannedMethodList map[string]int
+
+	endpointTargetsMutex   sync.Mutex
+	failoverTargetsMutex   sync.Mutex
+	scannedMethodListMutex sync.Mutex
 }
 
 type proxyTransportWithContext struct {
 	transport *ProxyTransport
 	c         *echo2.CustomContext
+}
+
+type UrlWithMethods struct {
+	Url              *url.URL
+	SupportedMethods map[string]struct{}
 }
 
 const (
@@ -45,7 +54,7 @@ const (
 	secondsInHour              = 3600
 )
 
-func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*ProxyTransport, error) {
+func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets, scannedMethodList map[string]int) (*ProxyTransport, error) {
 	pt := &ProxyTransport{
 		transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -58,8 +67,9 @@ func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*
 			TLSHandshakeTimeout:   3 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		maxAttempts: 5,
-		withJail:    withJail,
+		maxAttempts:       5,
+		withJail:          withJail,
+		scannedMethodList: scannedMethodList,
 	}
 
 	for _, ft := range failoverTargets {
@@ -69,7 +79,7 @@ func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets) (*
 		}
 
 		reqLimit := ft.ReqLimitHourly / (secondsInHour / limitWindowSeconds)
-		pt.failoverTargets = append(pt.failoverTargets, newProxyTarget(parsedUrl, reqLimit))
+		pt.failoverTargets = append(pt.failoverTargets, newProxyTarget(UrlWithMethods{Url: parsedUrl}, reqLimit))
 	}
 
 	return pt, nil
@@ -83,6 +93,7 @@ func (pt *ProxyTransport) WithContext(c echo.Context) *proxyTransportWithContext
 }
 
 func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	reqMethods := ptc.c.GetReqMethods()
 	clonedContentLength := req.ContentLength
 	clonedBody, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -99,8 +110,7 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 			break
 		default:
 		}
-
-		target, err = ptc.transport.NextAvailableTarget()
+		target, err = ptc.transport.NextAvailableTarget(reqMethods)
 		if err != nil {
 			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, extraNodeNoAvailableTargetsErrorResponse)
 		}
@@ -164,43 +174,85 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 }
 
 // Next returns an upstream target using round-robin technique.
-func (pt *ProxyTransport) getNextTarget() *proxyTarget {
-	pt.Lock()
-	defer pt.Unlock()
+func (pt *ProxyTransport) getNextTarget(reqMethods []string) (t *proxyTarget) {
+	var isContainUnscannedMethod, isFound bool
+	pt.scannedMethodListMutex.Lock()
+	for _, method := range reqMethods {
+		if _, ok := pt.scannedMethodList[method]; !ok {
+			isContainUnscannedMethod = true
+			break
+		}
+	}
+	pt.scannedMethodListMutex.Unlock()
 
-	pt.i = pt.i % len(pt.targets)
-	t := pt.targets[pt.i]
-	pt.i++
+	pt.endpointTargetsMutex.Lock()
+out:
+	for i := 0; i < len(pt.targets); i++ {
+		pt.i = pt.i % len(pt.targets)
+		t = pt.targets[pt.i]
+		pt.i++
+
+		if !t.isAvailable(pt.withJail) {
+			continue
+		}
+		if isContainUnscannedMethod && len(t.supportedMethods) < len(pt.scannedMethodList)-1 { // take nodes that were once rpc
+			continue
+		}
+		if isContainUnscannedMethod {
+			isFound = true
+			break
+		}
+
+		for _, method := range reqMethods {
+			if _, ok := t.supportedMethods[method]; !ok {
+				continue out
+			}
+		}
+
+		isFound = true
+		break
+	}
+	pt.endpointTargetsMutex.Unlock()
+
+	if !isFound {
+		return nil
+	}
+
 	return t
 }
 
 // Next returns an upstream target using round-robin technique.
-func (pt *ProxyTransport) getNextFailoverTarget() *proxyTarget {
-	pt.Lock()
-	defer pt.Unlock()
+func (pt *ProxyTransport) getNextFailoverTarget() (t *proxyTarget) {
+	var isFound bool
+	pt.failoverTargetsMutex.Lock()
+	for i := 0; i < len(pt.failoverTargets); i++ {
+		pt.fi = pt.fi % len(pt.failoverTargets)
+		t = pt.failoverTargets[pt.fi]
+		pt.fi++
 
-	pt.fi = pt.fi % len(pt.failoverTargets)
-	t := pt.failoverTargets[pt.fi]
-	pt.fi++
+		if !t.isAvailable(pt.withJail) {
+			continue
+		}
+
+		isFound = true
+		break
+	}
+	pt.failoverTargetsMutex.Unlock()
+	if !isFound {
+		return nil
+	}
+
 	return t
 }
 
-func (pt *ProxyTransport) NextAvailableTarget() (*proxyTarget, error) {
-	for i := 0; i < len(pt.targets); i++ {
-		target := pt.getNextTarget()
-		if !target.isAvailable(pt.withJail) {
-			continue
-		}
-
+func (pt *ProxyTransport) NextAvailableTarget(reqMethods []string) (*proxyTarget, error) {
+	target := pt.getNextTarget(reqMethods)
+	if target != nil {
 		return target, nil
 	}
 
-	for i := 0; i < len(pt.failoverTargets); i++ {
-		target := pt.getNextFailoverTarget()
-		if !target.isAvailable(pt.withJail) {
-			continue
-		}
-
+	target = pt.getNextFailoverTarget()
+	if target != nil {
 		return target, nil
 	}
 
@@ -208,18 +260,16 @@ func (pt *ProxyTransport) NextAvailableTarget() (*proxyTarget, error) {
 }
 
 // AddTarget adds an upstream target to the list.
-func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
+func (pt *ProxyTransport) AddTarget(urlWithMethods UrlWithMethods) bool {
 	for _, t := range pt.targets {
-		if strings.EqualFold(t.url.String(), url.String()) {
+		if strings.EqualFold(t.url.String(), urlWithMethods.Url.String()) {
 			return false
 		}
 	}
-
-	pt.Lock()
-	pt.targets = append(pt.targets, newProxyTarget(url, 0))
-	pt.Unlock()
-
-	log.Logger.Proxy.Debugf("Transport added target: %s", url.String())
+	pt.endpointTargetsMutex.Lock()
+	pt.targets = append(pt.targets, newProxyTarget(urlWithMethods, 0))
+	pt.endpointTargetsMutex.Unlock()
+	log.Logger.Proxy.Debugf("Transport added target: %s", urlWithMethods.Url.String())
 	return true
 }
 
@@ -227,9 +277,9 @@ func (pt *ProxyTransport) AddTarget(url *url.URL) bool {
 func (pt *ProxyTransport) RemoveTarget(url *url.URL) bool {
 	for i, t := range pt.targets {
 		if strings.EqualFold(t.url.String(), url.String()) {
-			pt.Lock()
+			pt.endpointTargetsMutex.Lock()
 			pt.targets = append(pt.targets[:i], pt.targets[i+1:]...)
-			pt.Unlock()
+			pt.endpointTargetsMutex.Unlock()
 
 			log.Logger.Proxy.Debugf("Transport removed target: %s", url.String())
 			return true
@@ -247,16 +297,18 @@ type proxyTarget struct {
 	successCounter uint64
 	reqCounter     uint64
 
-	jailExpireTime int64
-	reqWindow      int64
+	jailExpireTime   int64
+	reqWindow        int64
+	supportedMethods map[string]struct{}
 
 	sync.Mutex
 }
 
-func newProxyTarget(url *url.URL, reqLimit uint64) *proxyTarget {
+func newProxyTarget(urlWithMethods UrlWithMethods, reqLimit uint64) *proxyTarget {
 	return &proxyTarget{
-		url:      url,
-		reqLimit: reqLimit,
+		url:              urlWithMethods.Url,
+		reqLimit:         reqLimit,
+		supportedMethods: urlWithMethods.SupportedMethods,
 	}
 }
 
@@ -303,12 +355,12 @@ func (t *proxyTarget) isAvailable(withJail bool) bool {
 }
 
 // AddTarget adds an upstream target to the list.
-func (pt *ProxyTransport) UpdateTargets(urls []*url.URL) {
+func (pt *ProxyTransport) UpdateTargets(urlsWithMethods []UrlWithMethods) {
 	// Remove targets
 	for _, t := range pt.targets {
 		var found bool
-		for _, u := range urls {
-			if strings.EqualFold(t.url.String(), u.String()) {
+		for _, u := range urlsWithMethods {
+			if strings.EqualFold(t.url.String(), u.Url.String()) {
 				found = true
 				break
 			}
@@ -319,7 +371,7 @@ func (pt *ProxyTransport) UpdateTargets(urls []*url.URL) {
 		}
 	}
 
-	for _, u := range urls {
+	for _, u := range urlsWithMethods {
 		pt.AddTarget(u)
 	}
 }
