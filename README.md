@@ -16,13 +16,16 @@ The results get written to DB.
 ```
 CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/scanner
 CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/api
+CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/proxy
 ```
 - run ./scanner to start collecting new nodes
 - run ./api to start api server
+- run ./proxy to start proxy balancer
 
 ## Build and Deployment (via [docker-compose.yml](docker-compose.yml))
 - place filled [.env](.env.example) file into project root folder
-- add your certificates for https server in `certs` dir (optional)
+- add your certificates for https server in [creds](creds) dir (optional)
+- add firebase.conf in [creds](creds) dir (required)
 - build:
 ```
 make build
@@ -40,46 +43,6 @@ make stop
 ```
 -log string
         log level [debug|info|warn|error|crit] (default "debug")
-```
-
-## Enviroment variables description
-```
-# scanner
-# how many threads the scanner uses.
-SCANNER_THREADS_NUM=20
-# custom label for identifying server in clickhouse scanner log history
-SCANNER_HOSTNAME=server_hostname
-
-# api 
-# server port
-API_PORT=8000
-# path to certs for https (optional)
-API_CERT_FILE=creds/api.pem
-# config file for firebase
-API_FIREBASE_FILE_PATH=creds/firebase.json
-
-# proxy
-# server port
-PROXY_PORT=8001
-# port for prometheus metrics (optional; 0 or empty value - disable metrics)
-PROXY_METRICS_PORT=9099
-# path to certs for https (optional)
-PROXY_CERT_FILE=creds/api.pem
-# failover endpoints for proxy. Json encoded object array (optional)
-PROXY_FAILOVER_ENDPOINTS=[{"url":"http://127.0.0.1:8001","reqLimitHourly":1},{"url":"http://127.0.0.1","reqLimitHourly":2}]
-
-# postgres database connection properties
-PG_HOST=localhost
-PG_PORT=5432
-PG_USER=extrnode
-PG_PASS=somepass
-# database name
-PG_DB=extrnode
-# path to migrations dir
-PG_MIGRATIONS_PATH=db/pg-migrations
-
-# clickhouse connection string
-CH_DSN=clickhouse://username:password@host1:9000,host2:9000/database?dial_timeout=500ms&max_execution_time=60
 ```
 
 ## API documentation
