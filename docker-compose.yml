@@ -8,6 +8,7 @@ services:
     tty: true
     depends_on:
       - postgres
+      - clickhouse
     env_file:
       - .env
     entrypoint: "scanner"

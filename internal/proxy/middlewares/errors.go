@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -47,26 +46,25 @@ func (ptc *proxyTransportWithContext) decodeNodeResponse(httpResponse *http.Resp
 	}
 
 	httpResponse.Body = io.NopCloser(bytes.NewBuffer(body))
-	decoder := json.NewDecoder(bytes.NewBuffer(body))
-	decoder.UseNumber()
+	decoder := newJsonDecoder(body, false)
 
 	// trim after cloning
-	body = bytes.TrimSpace(body)
+	bodyString := string(bytes.TrimSpace(body))
 	// truncate body for context
-	if len(body) > bodyLimit {
-		body = body[:bodyLimit]
+	if len(bodyString) > bodyLimit {
+		bodyString = bodyString[:bodyLimit]
 	}
 	// save truncated body to context before handling it. Used in logger
-	ptc.c.SetResBody(body)
+	ptc.c.SetResBody(bodyString)
 	// clean possible old value
 	ptc.c.SetRpcErrors(nil)
 
-	if len(body) == 0 {
+	if len(bodyString) == 0 {
 		return append(errs, errors.New("empty body"))
 	}
 
 	var errCodes []int
-	switch fs := body[0]; {
+	switch fs := bodyString[0]; {
 	case fs == '{':
 		var rpcResponse RPCResponse
 		rpcMethod := ptc.c.GetReqMethod()

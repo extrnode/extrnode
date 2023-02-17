@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
@@ -70,3 +71,13 @@ var (
 		Message: "Method not found",
 	}
 )
+
+func newJsonDecoder(data []byte, disallowUnknownFields bool) (decoder *json.Decoder) {
+	decoder = json.NewDecoder(bytes.NewBuffer(data))
+	decoder.UseNumber()
+	if disallowUnknownFields {
+		decoder.DisallowUnknownFields()
+	}
+
+	return
+}

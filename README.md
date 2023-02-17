@@ -47,9 +47,11 @@ make stop
 # scanner
 # how many threads the scanner uses.
 SCANNER_THREADS_NUM=20
+# custom label for identifying server in clickhouse scanner log history
+SCANNER_HOSTNAME=server_hostname
 
 # api 
-# servert port
+# server port
 API_PORT=8000
 # path to certs for https (optional)
 API_CERT_FILE=creds/api.pem
@@ -57,7 +59,7 @@ API_CERT_FILE=creds/api.pem
 API_FIREBASE_FILE_PATH=creds/firebase.json
 
 # proxy
-# servert port
+# server port
 PROXY_PORT=8001
 # port for prometheus metrics (optional; 0 or empty value - disable metrics)
 PROXY_METRICS_PORT=9099

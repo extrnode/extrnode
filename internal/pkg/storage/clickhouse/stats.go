@@ -39,7 +39,7 @@ func (s *Storage) BatchInsertStats(stats []Stat) error {
 	defer func() {
 		err := tx.Rollback()
 		if err != nil && err != sql.ErrTxDone {
-			log.Logger.Api.Errorf("tx rollback error: %s", err.Error())
+			log.Logger.General.Errorf("tx rollback error: %s", err)
 		}
 	}()
 

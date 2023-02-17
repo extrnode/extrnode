@@ -36,7 +36,7 @@ func (s *scanner) updateAdapters() error {
 
 func (s *scanner) scheduleNmap(ctx context.Context) {
 	for {
-		peers, err := s.storage.GetPeers(true, nil, nil, nil, nil)
+		peers, err := s.pgStorage.GetPeers(true, nil, nil, nil, nil)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}
@@ -66,7 +66,7 @@ func (s *scanner) scheduleNmap(ctx context.Context) {
 
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		peers, err := s.storage.GetPeers(false, nil, nil, nil, nil)
+		peers, err := s.pgStorage.GetPeers(false, nil, nil, nil, nil)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}

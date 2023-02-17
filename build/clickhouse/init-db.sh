@@ -19,4 +19,25 @@ clickhouse client -n <<-EOSQL
     ) ENGINE = ReplacingMergeTree()
     ORDER BY (user_uuid, request_id);
 
+    CREATE TABLE IF NOT EXISTS extrnode.scanner_methods(
+        server_id String,
+        time DateTime,
+        peer String,
+        method String,
+        time_connect_ms Int64,
+        time_response_ms Int64,
+        response_code UInt16,
+        response_valid Bool
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (server_id, time, peer, method);
+
+    CREATE TABLE IF NOT EXISTS extrnode.scanner_peers(
+        server_id String,
+        time DateTime,
+        peer String,
+        time_connect_ms Int64,
+        is_alive Bool
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (server_id, time, peer);
+
 EOSQL

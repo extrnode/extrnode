@@ -2,23 +2,25 @@ package solana
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gagliardetto/solana-go"
 
 	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/postgres"
 )
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, now time.Time, isALive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
-	err := a.storage.CreateScannerPeer(peer.ID, now, 0, isALive)
-	if err != nil {
-		return fmt.Errorf("CreateScannerPeer: %s", err)
-	}
+func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, peerName string, isAlive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
+	a.scannerPeersCollector.Add(clickhouse.ScannerPeer{
+		Time:          a.scanStartTime,
+		Peer:          peerName,
+		TimeConnectMs: 0,
+		IsAlive:       isAlive,
+	})
 
-	err = a.storage.UpdatePeerByID(peer.ID, isRpc, isALive, isSSL, isMainNet, isValidator, version)
+	err := a.storage.UpdatePeerByID(peer.ID, isRpc, isAlive, isSSL, isMainNet, isValidator, version)
 	if err != nil {
 		return fmt.Errorf("UpdatePeerByID: %s", err)
 	}
@@ -38,16 +40,16 @@ func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, no
 }
 
 func (a *SolanaAdapter) ScanMethods(peer postgres.PeerWithIpAndBlockchain) error {
-	now := time.Now()
 	methods, err := a.storage.GetRpcMethodsMapByBlockchainID(a.blockchainID)
 	if err != nil {
 		return fmt.Errorf("GetRpcMethodsMapByBlockchainID: %s", err)
 	}
+	peerName := fmt.Sprintf("%s:%d", peer.Address.String(), peer.Port)
 
 	_, isValidator := a.voteAccountsNodePubkey[peer.NodePubkey] // peer.NodePubkey can be empty on first iteration
 	rpcClient, isSSL, version, err := a.getValidRpc(peer)
 	if err != nil {
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, peer.IsMainNet, isValidator, true, version) // version may be empty
+		err = a.updatePeerInfo(peer, peerName, false, false, isSSL, peer.IsMainNet, isValidator, true, version) // version may be empty
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 1: %s", err)
 		}
@@ -61,7 +63,7 @@ func (a *SolanaAdapter) ScanMethods(peer postgres.PeerWithIpAndBlockchain) error
 	}
 	// skip method checking for devnet
 	if hash != solanaMainNetGenesisHash {
-		err = a.updatePeerInfo(peer, now, false, false, isSSL, false, isValidator, true, version)
+		err = a.updatePeerInfo(peer, peerName, false, false, isSSL, false, isValidator, true, version)
 		if err != nil {
 			return fmt.Errorf("updatePeerInfo 2: %s", err)
 		}
@@ -88,14 +90,19 @@ func (a *SolanaAdapter) ScanMethods(peer postgres.PeerWithIpAndBlockchain) error
 			}
 		}
 
-		err = a.storage.CreateScannerMethod(peer.ID, mID, now, 0, responseTime, statusCode, responseValid)
-		if err != nil {
-			return fmt.Errorf("CreateScannerMethod: %s", err)
-		}
+		a.scannerMethodsCollector.Add(clickhouse.ScannerMethod{
+			Time:           a.scanStartTime,
+			Peer:           peerName,
+			Method:         mName,
+			TimeConnectMs:  0,
+			TimeResponseMs: responseTime.Milliseconds(),
+			ResponseCode:   uint16(statusCode),
+			ResponseValid:  responseValid,
+		})
 	}
 
 	// isMainNet == true because devnet is skipped
-	err = a.updatePeerInfo(peer, now, true, isRpc, isSSL, true, isValidator, false, version)
+	err = a.updatePeerInfo(peer, peerName, true, isRpc, isSSL, true, isValidator, false, version)
 	if err != nil {
 		return fmt.Errorf("updatePeerInfo 3: %s", err)
 	}
