@@ -66,6 +66,9 @@ func (s ScannerConfig) validate() error {
 	if s.ThreadsNum <= 0 {
 		return fmt.Errorf("invalid ThreadsNum: %d", s.ThreadsNum)
 	}
+	if s.Hostname == "" {
+		return fmt.Errorf("empty Hostname")
+	}
 
 	return nil
 }

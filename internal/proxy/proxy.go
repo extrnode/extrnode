@@ -16,9 +16,9 @@ import (
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
 	"extrnode-be/internal/pkg/storage/clickhouse"
+	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/postgres"
 	echo2 "extrnode-be/internal/pkg/util/echo"
-	"extrnode-be/internal/proxy/log_collector"
 	"extrnode-be/internal/proxy/middlewares"
 )
 
@@ -40,13 +40,13 @@ type proxy struct {
 	blockchainIDs   map[string]int
 	failoverTargets config.FailoverTargets
 
-	logCollector *log_collector.Collector
+	statsCollector *delayed_insertion.Collector[clickhouse.Stat]
 }
 
 const (
-	serverShutdownTimeout = 10 * time.Second
-
+	serverShutdownTimeout   = 10 * time.Second
 	endpointsReloadInterval = 5 * time.Minute
+	collectorInterval       = 10 * time.Second
 )
 
 func NewProxy(cfg config.Config) (*proxy, error) {
@@ -56,7 +56,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
 	}
-	chStorage, err := clickhouse.New(cfg.CH.DSN)
+	chStorage, err := clickhouse.New(cfg.CH.DSN, cfg.Scanner.Hostname)
 	if err != nil {
 		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
@@ -79,7 +79,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		blockchainIDs:   blockchainsMap,
 		failoverTargets: cfg.Proxy.FailoverEndpoints,
 
-		logCollector: log_collector.NewCollector(ctx, chStorage),
+		statsCollector: delayed_insertion.New[clickhouse.Stat](ctx, cfg, chStorage, collectorInterval),
 	}
 
 	if cfg.Proxy.CertFile != "" {
@@ -151,7 +151,7 @@ func (p *proxy) initProxyHandlers() error {
 	p.router.POST("/", nil,
 		middlewares.RequestDurationMiddleware(),
 		middlewares.RequestIDMiddleware(),
-		middlewares.NewLoggerMiddleware(p.logCollector.AddStat),
+		middlewares.NewLoggerMiddleware(p.statsCollector.Add),
 		middlewares.NewMetricsMiddleware(),
 		middlewares.NewValidatorMiddleware(),
 		middlewares.NewProxyMiddleware(transport),

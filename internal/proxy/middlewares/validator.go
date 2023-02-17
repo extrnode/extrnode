@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -45,10 +44,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusOK, parseErrorResponse) // solana mainnet return parse err in this case
 			}
 
-			decoder := json.NewDecoder(bytes.NewBuffer(reqBody))
-			decoder.DisallowUnknownFields()
-			decoder.UseNumber()
-
+			decoder := newJsonDecoder(reqBody, true)
 			cc.SetReqBody(reqBody)
 
 			var methodArray []string

@@ -14,7 +14,7 @@ type CustomContext struct {
 
 	reqMethods        []string
 	reqBody           []byte
-	resBody           []byte
+	resBody           string
 	rpcErrors         []int
 	proxyEndpoint     string
 	proxyAttempts     int
@@ -47,15 +47,15 @@ func (c *CustomContext) SetReqBody(reqBody []byte) {
 	c.reqBody = reqBody
 }
 
-func (c *CustomContext) GetReqBody() []byte {
-	return c.reqBody
+func (c *CustomContext) GetReqBody() string {
+	return string(c.reqBody)
 }
 
-func (c *CustomContext) SetResBody(resBody []byte) {
+func (c *CustomContext) SetResBody(resBody string) {
 	c.resBody = resBody
 }
 
-func (c *CustomContext) GetResBody() []byte {
+func (c *CustomContext) GetResBody() string {
 	return c.resBody
 }
 

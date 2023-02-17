@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
 	"extrnode-be/internal/pkg/log"
+	"extrnode-be/internal/pkg/storage/clickhouse"
+	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/postgres"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
@@ -32,9 +35,13 @@ type SolanaAdapter struct {
 	signatureForAddress    solana.Signature
 	slot                   uint64
 	baseRpcClient          *rpc.Client
+	scanStartTime          time.Time
+
+	scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod]
+	scannerPeersCollector   *delayed_insertion.Collector[clickhouse.ScannerPeer]
 }
 
-func NewSolanaAdapter(ctx context.Context, storage postgres.Storage) (*SolanaAdapter, error) {
+func NewSolanaAdapter(ctx context.Context, storage postgres.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
 	blockchain, err := storage.GetBlockchainByName(solanaBlockchain)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainByName: %s", err)
@@ -44,10 +51,12 @@ func NewSolanaAdapter(ctx context.Context, storage postgres.Storage) (*SolanaAda
 	}
 
 	sa := SolanaAdapter{
-		storage:       storage,
-		blockchainID:  blockchain.ID,
-		ctx:           ctx,
-		baseRpcClient: createRpcWithTimeout(rpc.MainNetBeta_RPC),
+		storage:                 storage,
+		blockchainID:            blockchain.ID,
+		ctx:                     ctx,
+		baseRpcClient:           createRpcWithTimeout(rpc.MainNetBeta_RPC),
+		scannerMethodsCollector: scannerMethodsCollector,
+		scannerPeersCollector:   scannerPeersCollector,
 	}
 
 	err = sa.BeforeRun()
@@ -100,8 +109,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 	if err != nil {
 		return fmt.Errorf("GetSlot: %s", err)
 	}
-
-	slot = slot - slotShift
+	slot -= slotShift
 	a.slot = slot
 	ops := rpc.GetBlockOpts{
 		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
@@ -113,7 +121,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 		}
 		block, err := a.baseRpcClient.GetBlockWithOpts(a.ctx, slot, &ops)
 		if typedErr, ok := err.(*jsonrpc.RPCError); ok && typedErr.Code == slotSkipperErrCode {
-			slot = slot + 10
+			slot += 10
 			continue
 		}
 		if err != nil {
@@ -133,6 +141,8 @@ func (a *SolanaAdapter) BeforeRun() error {
 	for _, va := range voteAccounts.Current {
 		a.voteAccountsNodePubkey[va.NodePubkey.String()] = struct{}{}
 	}
+
+	a.scanStartTime = time.Now()
 
 	return nil
 }

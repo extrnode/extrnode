@@ -5,9 +5,11 @@ import (
 )
 
 type typedLog struct {
-	Scanner *log.Entry
-	Api     *log.Entry
-	Proxy   *log.Entry
+	Scanner   *log.Entry
+	Api       *log.Entry
+	Proxy     *log.Entry
+	Collector *log.Entry
+	General   *log.Entry
 }
 
 var (
@@ -17,9 +19,11 @@ var (
 // Init logger on start
 func init() {
 	Logger = &typedLog{
-		Scanner: log.WithFields(log.Fields{"module": "scanner"}),
-		Api:     log.WithFields(log.Fields{"module": "api"}),
-		Proxy:   log.WithFields(log.Fields{"module": "proxy"}),
+		Scanner:   log.WithFields(log.Fields{"module": "scanner"}),
+		Api:       log.WithFields(log.Fields{"module": "api"}),
+		Proxy:     log.WithFields(log.Fields{"module": "proxy"}),
+		Collector: log.WithFields(log.Fields{"module": "collector"}),
+		General:   log.WithFields(log.Fields{"module": "general"}),
 	}
 }
 

@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -10,14 +11,19 @@ import (
 )
 
 type Storage struct {
-	conn *sql.DB
+	conn     *sql.DB
+	hostname string
 }
 
-func New(dsn string) (s *Storage, err error) {
+func New(dsn, hostname string) (s *Storage, err error) {
+	if dsn == "" {
+		log.Logger.General.Infof("start without CH")
+		return nil, nil
+	}
+
 	opt, err := clickhouse.ParseDSN(dsn)
 	if err != nil {
-		log.Logger.Proxy.Errorf("CH.New: %s", err)
-		return s, nil
+		return s, fmt.Errorf("ParseDSN: %s", err)
 	}
 	conn := clickhouse.OpenDB(opt)
 	conn.SetMaxIdleConns(5)
@@ -27,11 +33,10 @@ func New(dsn string) (s *Storage, err error) {
 	// Test connection
 	err = conn.Ping()
 	if err != nil {
-		log.Logger.Proxy.Errorf("CH.New: connection ping error: %s", err)
-		return s, nil
+		return s, fmt.Errorf("connection ping error: %s", err)
 	}
 
-	return &Storage{conn: conn}, nil
+	return &Storage{conn: conn, hostname: hostname}, nil
 }
 
 func (s *Storage) Close() error {

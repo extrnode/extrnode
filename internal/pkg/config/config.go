@@ -18,7 +18,8 @@ type Config struct {
 }
 
 type ScannerConfig struct {
-	ThreadsNum int `required:"true" split_words:"true"`
+	ThreadsNum int    `required:"true" split_words:"true"`
+	Hostname   string `required:"true" split_words:"true"`
 }
 
 type ProxyConfig struct {
