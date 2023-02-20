@@ -7,12 +7,12 @@ import (
 
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/clickhouse"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")
 
-func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, peerName string, isAlive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
+func (a *SolanaAdapter) updatePeerInfo(peer sqlite.PeerWithIpAndBlockchain, peerName string, isAlive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
 	a.scannerPeersCollector.Add(clickhouse.ScannerPeer{
 		Time:          a.scanStartTime,
 		Peer:          peerName,
@@ -39,7 +39,7 @@ func (a *SolanaAdapter) updatePeerInfo(peer postgres.PeerWithIpAndBlockchain, pe
 	return nil
 }
 
-func (a *SolanaAdapter) ScanMethods(peer postgres.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) ScanMethods(peer sqlite.PeerWithIpAndBlockchain) error {
 	methods, err := a.storage.GetRpcMethodsMapByBlockchainID(a.blockchainID)
 	if err != nil {
 		return fmt.Errorf("GetRpcMethodsMapByBlockchainID: %s", err)

@@ -213,7 +213,6 @@ out:
 		break
 	}
 	pt.endpointTargetsMutex.Unlock()
-
 	if !isFound {
 		return nil
 	}

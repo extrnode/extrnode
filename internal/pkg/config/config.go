@@ -13,6 +13,7 @@ type Config struct {
 	Scanner ScannerConfig
 	API     ApiConfig
 	Proxy   ProxyConfig
+	SL      SQLiteConfig
 	PG      PostgresConfig
 	CH      ClickhouseConfig
 }
@@ -41,6 +42,11 @@ type PostgresConfig struct {
 	User           string `required:"true" split_words:"true"`
 	Pass           string `required:"true" split_words:"true"`
 	DB             string `required:"true" split_words:"true"`
+	MigrationsPath string `required:"true" split_words:"true"`
+}
+
+type SQLiteConfig struct {
+	DBPath         string `required:"true" split_words:"true"`
 	MigrationsPath string `required:"true" split_words:"true"`
 }
 

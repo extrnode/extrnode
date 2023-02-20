@@ -12,9 +12,13 @@ func (c Config) validate() error {
 	if err := c.Proxy.validate(); err != nil {
 		return fmt.Errorf("proxy: %s", err)
 	}
+	if err := c.SL.validate(); err != nil {
+		return fmt.Errorf("sqlite: %s", err)
+	}
 	if err := c.PG.validate(); err != nil {
 		return fmt.Errorf("postgres: %s", err)
 	}
+
 	if err := c.CH.validate(); err != nil {
 		return fmt.Errorf("clickhouse: %s", err)
 	}
@@ -41,6 +45,17 @@ func (p ProxyConfig) validate() error {
 		if h.Url == "" {
 			return errors.New("invalid failover endpoints")
 		}
+	}
+
+	return nil
+}
+
+func (p SQLiteConfig) validate() error {
+	if p.DBPath == "" {
+		return fmt.Errorf("invalid DBPath")
+	}
+	if p.MigrationsPath == "" {
+		return fmt.Errorf("invalid MigrationsPath")
 	}
 
 	return nil

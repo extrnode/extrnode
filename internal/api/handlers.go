@@ -106,7 +106,7 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 		}
 	}
 
-	res, err := a.pgStorage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
+	res, err := a.slStorage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
 		log.Logger.Api.Errorf("endpointsHandler: GetEndpoints: %s", err)
 		return err

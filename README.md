@@ -59,6 +59,6 @@ created within first time run of the data loader
 ### Run tests
     make test
 ### Run for development
-Will run dependencies like postgres with ports open locally
+Will run dependencies like clickhouse with ports open locally
 
     make dev

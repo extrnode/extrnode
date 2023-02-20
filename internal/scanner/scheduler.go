@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 type chainType string
@@ -19,7 +19,7 @@ const (
 )
 
 type scannerTask struct {
-	peer  postgres.PeerWithIpAndBlockchain
+	peer  sqlite.PeerWithIpAndBlockchain
 	chain chainType
 }
 
@@ -36,12 +36,12 @@ func (s *scanner) updateAdapters() error {
 
 func (s *scanner) scheduleNmap(ctx context.Context) {
 	for {
-		peers, err := s.pgStorage.GetPeers(true, nil, nil, nil, nil)
+		peers, err := s.slStorage.GetPeers(true, nil, nil, nil, nil)
 		if err != nil {
-			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
+			log.Logger.Scanner.Fatalf("scheduleNmap: GetPeers: %s", err)
 		}
 
-		log.Logger.Scanner.Debugf("scheduleScans: get %d uniq IP for nmap. Creating scanner tasks", len(peers))
+		log.Logger.Scanner.Debugf("scheduleNmap: get %d uniq IP for nmap. Creating scanner tasks", len(peers))
 
 		for _, p := range peers {
 			select {
@@ -66,7 +66,7 @@ func (s *scanner) scheduleNmap(ctx context.Context) {
 
 func (s *scanner) scheduleScans(ctx context.Context) {
 	for {
-		peers, err := s.pgStorage.GetPeers(false, nil, nil, nil, nil)
+		peers, err := s.slStorage.GetPeers(false, nil, nil, nil, nil)
 		if err != nil {
 			log.Logger.Scanner.Fatalf("scheduleScans: GetPeers: %s", err)
 		}

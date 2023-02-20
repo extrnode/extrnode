@@ -1,4 +1,4 @@
-package postgres
+package sqlite
 
 import (
 	"fmt"
@@ -8,14 +8,14 @@ import (
 )
 
 type RpcPeerMethod struct {
-	PeerID       int `pg:"prs_id"` // Peer
-	RpcMethodID  int `pg:"mtd_id"` // RpcMethod
-	ResponseTime int `pg:"pmd_response_time_ms"`
+	PeerID       int
+	RpcMethodID  int
+	ResponseTime int
 }
 
-const rpcPeersMethodsTable = "rpc.peers_methods"
+const rpcPeersMethodsTable = "rpc_peers_methods"
 
-func (p *Storage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time.Duration) error {
+func (s *Storage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time.Duration) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -23,9 +23,9 @@ func (p *Storage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time
 		return fmt.Errorf("empty rpcMethodID")
 	}
 
-	query := `INSERT INTO rpc.peers_methods (prs_id, mtd_id, pmd_response_time_ms)
-			VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT peers_methods_pk DO UPDATE SET pmd_response_time_ms = ?`
-	_, err := p.db.Exec(query, peerID, rpcMethodID, responseTime.Milliseconds(), responseTime.Milliseconds())
+	query := `INSERT INTO rpc_peers_methods (prs_id, mtd_id, pmd_response_time_ms)
+			VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET pmd_response_time_ms = ?`
+	_, err := s.db.ExecContext(s.ctx, query, peerID, rpcMethodID, responseTime.Milliseconds(), responseTime.Milliseconds())
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (p *Storage) UpsertRpcPeerMethod(peerID, rpcMethodID int, responseTime time
 	return nil
 }
 
-func (p *Storage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
+func (s *Storage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
 	if peerID == 0 {
 		return fmt.Errorf("empty peerID")
 	}
@@ -52,7 +52,7 @@ func (p *Storage) DeleteRpcPeerMethod(peerID int, rpcMethodID *int) error {
 		return err
 	}
 
-	_, err = p.db.Exec(query, args...)
+	_, err = s.db.ExecContext(s.ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("delete: %s", err)
 	}

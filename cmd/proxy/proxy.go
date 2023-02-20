@@ -40,6 +40,8 @@ func main() {
 		log.Logger.Proxy.Fatalf("Config: %s", err)
 	}
 
+	log.Logger.Proxy.Info("Start service")
+
 	app, err := proxy.NewProxy(cfg)
 	if err != nil {
 		log.Logger.Proxy.Fatalf("NewProxy: %s", err)

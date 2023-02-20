@@ -8,12 +8,12 @@ import (
 	"github.com/Ullaakut/nmap/v2"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 const portOpenState = "open"
 
-func ScanAndInsertPorts(ctx context.Context, s postgres.Storage, peer postgres.PeerWithIpAndBlockchain) error {
+func ScanAndInsertPorts(ctx context.Context, s sqlite.Storage, peer sqlite.PeerWithIpAndBlockchain) error {
 	ports, err := NmapScan(ctx, peer.Address.String())
 	if err != nil {
 		return err

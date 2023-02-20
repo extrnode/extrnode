@@ -14,12 +14,13 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
+	"extrnode-be/internal/pkg/storage/postgres"
 	echo2 "extrnode-be/internal/pkg/util/echo"
 
 	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 // holds swagger static web server content.
@@ -31,6 +32,7 @@ type api struct {
 	conf      config.ApiConfig
 	certData  []byte
 	router    *echo.Echo
+	slStorage sqlite.Storage
 	pgStorage postgres.Storage
 	cache     *cache.Cache
 	waitGroup *sync.WaitGroup
@@ -57,12 +59,17 @@ func NewAPI(cfg config.Config) (*api, error) {
 	//uuid.EnableRandPool()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
+	slStorage, err := sqlite.New(ctx, cfg.SL)
+	if err != nil {
+		return nil, fmt.Errorf("SL storage init: %s", err)
+	}
+
 	pgStorage, err := postgres.New(ctx, cfg.PG)
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
 	}
 
-	blockchainsMap, err := pgStorage.GetBlockchainsMap()
+	blockchainsMap, err := slStorage.GetBlockchainsMap()
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
@@ -76,6 +83,7 @@ func NewAPI(cfg config.Config) (*api, error) {
 	a := &api{
 		conf:      cfg.API,
 		router:    echo.New(),
+		slStorage: slStorage,
 		pgStorage: pgStorage,
 		cache:     cache.New(cacheTTL, cacheTTL),
 

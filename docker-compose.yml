@@ -17,6 +17,8 @@ services:
     logging:
       options:
         max-size: "1g"
+    volumes:
+      - sqlite:/sqlite
 
   extrnode-api:
     container_name: extrnode-api
@@ -35,6 +37,8 @@ services:
     logging:
       options:
         max-size: "1g"
+    volumes:
+      - sqlite:/sqlite
 
   extrnode-proxy:
     container_name: extrnode-proxy
@@ -45,7 +49,6 @@ services:
       - "${PROXY_PORT}:${PROXY_PORT}"
       - "${PROXY_METRICS_PORT}:${PROXY_METRICS_PORT}"
     depends_on:
-      - postgres
       - clickhouse
     env_file:
       - .env
@@ -55,6 +58,8 @@ services:
     logging:
       options:
         max-size: "1g"
+    volumes:
+      - sqlite:/sqlite
 
   postgres:
     container_name: extrnode-postgres
@@ -94,4 +99,5 @@ services:
 
 volumes:
   postgres:
+  sqlite:
   clickhouse:

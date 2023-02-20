@@ -11,6 +11,7 @@ import (
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
 	"extrnode-be/internal/scanner/scaners/nmap"
@@ -19,6 +20,7 @@ import (
 type scanner struct {
 	cfg       config.Config
 	pgStorage postgres.Storage
+	slStorage sqlite.Storage
 
 	taskQueue     chan scannerTask
 	nmapTaskQueue chan scannerTask
@@ -40,6 +42,10 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
 	}
+	slStorage, err := sqlite.New(ctx, cfg.SL)
+	if err != nil {
+		return nil, fmt.Errorf("SL storage init: %s", err)
+	}
 	chStorage, err := clickhouse.New(cfg.CH.DSN, cfg.Scanner.Hostname)
 	if err != nil {
 		return nil, fmt.Errorf("CH storage init: %s", err)
@@ -47,7 +53,7 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 
 	scannerMethodsCollector := delayed_insertion.New[clickhouse.ScannerMethod](ctx, cfg, chStorage, collectorInterval)
 	scannerPeersCollector := delayed_insertion.New[clickhouse.ScannerPeer](ctx, cfg, chStorage, collectorInterval)
-	solanaAdapter, err := solana.NewSolanaAdapter(ctx, pgStorage, scannerMethodsCollector, scannerPeersCollector)
+	solanaAdapter, err := solana.NewSolanaAdapter(ctx, slStorage, scannerMethodsCollector, scannerPeersCollector)
 	if err != nil {
 		return nil, fmt.Errorf("NewSolanaAdapter: %s", err)
 	}
@@ -55,6 +61,7 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 	return &scanner{
 		cfg:           cfg,
 		pgStorage:     pgStorage,
+		slStorage:     slStorage,
 		taskQueue:     make(chan scannerTask),
 		nmapTaskQueue: make(chan scannerTask),
 		waitGroup:     &sync.WaitGroup{},
@@ -160,7 +167,7 @@ func (s *scanner) runNmap(ctx context.Context) {
 
 		case task := <-s.nmapTaskQueue:
 			isIdle = false
-			err := nmap.ScanAndInsertPorts(s.ctx, s.pgStorage, task.peer)
+			err := nmap.ScanAndInsertPorts(s.ctx, s.slStorage, task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("NmapCheck (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}
@@ -188,5 +195,43 @@ func (s *scanner) WaitGroup() *sync.WaitGroup {
 
 func (s *scanner) Stop() (err error) {
 	s.ctxCancel()
+	return nil
+}
+
+func (s *scanner) LoadPostgresData() error {
+	log.Logger.Scanner.Info("LoadPostgresData")
+	solanaBlockchain, err := s.pgStorage.GetBlockchainByName("solana")
+	if err != nil {
+		return fmt.Errorf("GetBlockchainByName: %s", err)
+	}
+	endpoints, err := s.pgStorage.GetEndpoints()
+	if err != nil {
+		return fmt.Errorf("GetEndpoints: %s", err)
+	}
+
+	for _, e := range endpoints {
+		countryID, err := s.slStorage.GetOrCreateGeoCountry(e.CountryAlpha2, e.CountryAlpha3, e.CountryName)
+		if err != nil {
+			return fmt.Errorf("GetOrCreateGeoCountry: %s; req %+v", err, e)
+		}
+
+		networkID, err := s.slStorage.GetOrCreateGeoNetwork(countryID, e.NetworkMask, e.NetworkAs, e.NetworkName)
+		if err != nil {
+			return fmt.Errorf("GetOrCreateGeoNetwork: %s; req %+v cntId %d", err, e, countryID)
+		}
+
+		ipID, err := s.slStorage.GetOrCreateIP(networkID, e.Address)
+		if err != nil {
+			return fmt.Errorf("GetOrCreateIP: %s; req %+v; networkID %d", err, e, networkID)
+		}
+
+		_, err = s.slStorage.GetOrCreatePeer(solanaBlockchain.ID, ipID, e.Port, e.Version, e.IsRpc, e.IsAlive, e.IsSSL, e.IsMainNet, e.IsValidator, e.NodePubkey)
+		if err != nil {
+			return fmt.Errorf("GetOrCreatePeer: %s; req %+v blcId %d ipId %d", err, e, solanaBlockchain.ID, ipID)
+		}
+	}
+
+	log.Logger.Scanner.Infof("loaded %d rows to sqlite", len(endpoints))
+
 	return nil
 }

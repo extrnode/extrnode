@@ -40,6 +40,8 @@ func main() {
 		log.Logger.Api.Fatalf("Config: %s", err)
 	}
 
+	log.Logger.Api.Info("Start service")
+
 	app, err := api.NewAPI(cfg)
 	if err != nil {
 		log.Logger.Api.Fatalf("NewAPI: %s", err)
