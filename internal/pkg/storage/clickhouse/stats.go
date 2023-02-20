@@ -92,29 +92,12 @@ func (s *Storage) BatchInsertStats(stats []Stat) error {
 }
 
 func (s *Storage) DeleteOutdatedStats() error {
-	tx, err := s.conn.Begin()
-	if err != nil {
-		return fmt.Errorf("tx begin error: %s", err)
-	}
-
-	defer func() {
-		err := tx.Rollback()
-		if err != nil && err != sql.ErrTxDone {
-			log.Logger.General.Errorf("tx rollback error: %s", err)
-		}
-	}()
-
 	query := `ALTER TABLE stats DELETE
     	WHERE toDate(now()) > toDate(timestamp);`
 
-	_, err = tx.Exec(query)
+	_, err := s.conn.Exec(query)
 	if err != nil {
-		return fmt.Errorf("exec statement error: %s", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("tx commit error: %s", err)
+		return fmt.Errorf("exec: %s", err)
 	}
 
 	return nil
