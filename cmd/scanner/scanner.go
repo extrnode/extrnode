@@ -15,14 +15,16 @@ const (
 )
 
 type flags struct {
-	logLevel string
-	envFile  string
+	logLevel         string
+	envFile          string
+	loadPostgresData bool
 }
 
 // Setup flags
 func getFlags() (f flags) {
 	flag.StringVar(&f.logLevel, "log", "info", "log level [debug|info|warn|error|crit]")
 	flag.StringVar(&f.envFile, "envFile", "", "path to .env file")
+	flag.BoolVar(&f.loadPostgresData, "loadPostgresData", false, "")
 	flag.Parse()
 
 	return
@@ -40,9 +42,20 @@ func main() {
 		log.Logger.Scanner.Fatalf("Config: %s", err)
 	}
 
+	log.Logger.Scanner.Info("Start service")
+
 	app, err := scanner.NewScanner(cfg)
 	if err != nil {
 		log.Logger.Scanner.Fatalf("scanner error: %s", err)
+	}
+
+	if f.loadPostgresData {
+		err = app.LoadPostgresData()
+		if err != nil {
+			log.Logger.Scanner.Fatalf("scanner error: LoadPostgresData: %s", err)
+		}
+
+		return
 	}
 
 	// Run service

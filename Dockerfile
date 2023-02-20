@@ -1,11 +1,15 @@
-FROM golang:1.19 as builder
+FROM golang:1.19-alpine3.17 as builder
 
 WORKDIR /app
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/scanner
-RUN CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/proxy
+
+# used for build sqlite
+RUN apk add --update gcc musl-dev
+
+RUN CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner
+RUN CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/api
+RUN CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/proxy
 
 FROM alpine:3.17
 RUN apk add ca-certificates

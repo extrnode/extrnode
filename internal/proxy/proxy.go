@@ -17,7 +17,7 @@ import (
 	"extrnode-be/internal/pkg/metrics"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 	echo2 "extrnode-be/internal/pkg/util/echo"
 	"extrnode-be/internal/proxy/middlewares"
 )
@@ -32,7 +32,7 @@ type proxy struct {
 	metricsPort   uint64
 	router        *echo.Echo
 	metricsServer *echo.Echo
-	pgStorage     postgres.Storage
+	slStorage     sqlite.Storage
 	waitGroup     *sync.WaitGroup
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
@@ -52,7 +52,7 @@ const (
 func NewProxy(cfg config.Config) (*proxy, error) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	pgStorage, err := postgres.New(ctx, cfg.PG)
+	slStorage, err := sqlite.New(ctx, cfg.SL)
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
 	}
@@ -61,7 +61,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
 
-	blockchainsMap, err := pgStorage.GetBlockchainsMap()
+	blockchainsMap, err := slStorage.GetBlockchainsMap()
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
@@ -71,7 +71,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		metricsPort:   cfg.Proxy.MetricsPort,
 		router:        echo.New(),
 		metricsServer: echo.New(),
-		pgStorage:     pgStorage,
+		slStorage:     slStorage,
 
 		waitGroup:       &sync.WaitGroup{},
 		ctx:             ctx,

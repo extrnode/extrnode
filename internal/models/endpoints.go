@@ -2,13 +2,13 @@ package models
 
 type (
 	Endpoint struct {
-		Endpoint         string           `json:"endpoint" pg:"endpoint"`
-		Version          string           `json:"version"  pg:"prs_version"`
-		SupportedMethods SupportedMethods `json:"supported_methods" pg:"supported_methods"`
-		IsRpc            bool             `json:"is_rpc" pg:"prs_is_rpc"`
-		IsValidator      bool             `json:"is_validator" pg:"prs_is_validator"`
-		IsSsl            bool             `json:"is_ssl" pg:"prs_is_ssl"`
-		AsnInfo          AsnInfo          `json:"asn_info" pg:"asn_info"`
+		Endpoint         string           `json:"endpoint"`
+		Version          string           `json:"version" `
+		SupportedMethods SupportedMethods `json:"supported_methods"`
+		IsRpc            bool             `json:"is_rpc"`
+		IsValidator      bool             `json:"is_validator"`
+		IsSsl            bool             `json:"is_ssl"`
+		AsnInfo          AsnInfo          `json:"asn_info"`
 	}
 	EndpointCsv struct {
 		Endpoint    string `csv:"endpoint"`
@@ -32,18 +32,18 @@ type (
 		Name   string `json:"name"`
 	}
 	Stat struct {
-		Total     int `json:"total" pg:"total"`
-		Alive     int `json:"alive" pg:"alive"`
-		Rpc       int `json:"rpc" pg:"rpc"`
-		Validator int `json:"validator" pg:"validator"`
+		Total     int `json:"total"`
+		Alive     int `json:"alive"`
+		Rpc       int `json:"rpc"`
+		Validator int `json:"validator"`
 	}
 )
 
 // helpers
 type (
 	SupportedMethods []struct {
-		Name         string `json:"name"  pg:"name"`
-		ResponseTime int64  `json:"response_time"  pg:"response_time"`
+		Name         string `json:"name"`
+		ResponseTime int64  `json:"response_time"`
 	}
 )
 

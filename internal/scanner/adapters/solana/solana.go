@@ -13,7 +13,7 @@ import (
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
-	"extrnode-be/internal/pkg/storage/postgres"
+	"extrnode-be/internal/pkg/storage/sqlite"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
 
@@ -29,7 +29,7 @@ var maxSupportedTransactionVersion uint64 = 0
 
 type SolanaAdapter struct {
 	ctx                    context.Context
-	storage                postgres.Storage
+	storage                sqlite.Storage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
 	signatureForAddress    solana.Signature
@@ -41,7 +41,7 @@ type SolanaAdapter struct {
 	scannerPeersCollector   *delayed_insertion.Collector[clickhouse.ScannerPeer]
 }
 
-func NewSolanaAdapter(ctx context.Context, storage postgres.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
+func NewSolanaAdapter(ctx context.Context, storage sqlite.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
 	blockchain, err := storage.GetBlockchainByName(solanaBlockchain)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainByName: %s", err)
@@ -67,7 +67,7 @@ func NewSolanaAdapter(ctx context.Context, storage postgres.Storage, scannerMeth
 	return &sa, nil
 }
 
-func (a *SolanaAdapter) Scan(peer postgres.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) Scan(peer sqlite.PeerWithIpAndBlockchain) error {
 	err := a.ScanMethods(peer)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (a *SolanaAdapter) Scan(peer postgres.PeerWithIpAndBlockchain) error {
 	return nil
 }
 
-func (a *SolanaAdapter) GetNewNodes(peer postgres.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) GetNewNodes(peer sqlite.PeerWithIpAndBlockchain) error {
 	if !peer.IsAlive || !peer.IsMainNet {
 		return nil
 	}
@@ -150,7 +150,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 const outdatedSlotShift = 15
 
 type peerWithSlot struct {
-	postgres.PeerWithIpAndBlockchain
+	sqlite.PeerWithIpAndBlockchain
 	currentSlot uint64
 }
 
@@ -170,7 +170,7 @@ func (a *SolanaAdapter) CheckOutdatedNodes() error {
 	res := make([]peerWithSlot, 0, len(peers))
 	wg.Add(len(peers))
 	for _, p := range peers {
-		go func(wg *sync.WaitGroup, p postgres.PeerWithIpAndBlockchain) {
+		go func(wg *sync.WaitGroup, p sqlite.PeerWithIpAndBlockchain) {
 			defer wg.Done()
 
 			rpcClient := createRpcWithTimeout(createNodeUrl(p, p.IsSSL))

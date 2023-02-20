@@ -17,7 +17,7 @@ func (p *proxy) getScannedMethods() (scannedMethodList map[string]int, err error
 		return scannedMethodList, fmt.Errorf("fail to get blockchainID")
 	}
 
-	scannedMethodList, err = p.pgStorage.GetRpcMethodsMapByBlockchainID(blockchainID)
+	scannedMethodList, err = p.slStorage.GetRpcMethodsMapByBlockchainID(blockchainID)
 	if err != nil {
 		return scannedMethodList, fmt.Errorf("GetRpcMethodsMapByBlockchainID: %s", err)
 	}
@@ -31,7 +31,7 @@ func (p *proxy) getEndpointsURLs(blockchain string) ([]middlewares.UrlWithMethod
 		return nil, fmt.Errorf("fail to get blockchainID")
 	}
 
-	endpoints, err := p.pgStorage.GetEndpoints(blockchainID, 0, nil, nil, nil, nil, nil)
+	endpoints, err := p.slStorage.GetEndpoints(blockchainID, 0, nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetEndpoints: %s", err)
 	}

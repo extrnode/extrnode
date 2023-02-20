@@ -21,6 +21,7 @@ config.yml*
 distribution.yml
 /scanner
 /api
+/proxy
 
 !/.golangci.yml
 /.build
@@ -33,3 +34,4 @@ mock_*
 *.pem
 firebase.json
 /creds/*
+sqlite.db*
