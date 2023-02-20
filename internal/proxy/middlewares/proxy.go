@@ -90,15 +90,11 @@ func (eh *errorHandler) WithContext(c echo.Context) func(http.ResponseWriter, *h
 		// context.Canceled error with unexported garbage value requiring a substring check, see
 		// https://github.com/golang/go/blob/6965b01ea248cabb70c3749fd218b36089a21efb/src/net/net.go#L416-L430
 		if err == context.Canceled || strings.Contains(err.Error(), "operation was canceled") {
-			httpError := echo.NewHTTPError(StatusCodeContextCanceled, fmt.Sprintf("client closed connection: %v", err))
-			httpError.Internal = err
-			eh.err = httpError
+			eh.err = echo.NewHTTPError(StatusCodeContextCanceled, fmt.Sprintf("client closed connection: %v", err))
 		} else if httErr, ok := err.(*echo.HTTPError); ok {
 			eh.err = httErr // return not changed err for user
 		} else {
-			httpError := echo.NewHTTPError(http.StatusBadGateway, err.Error())
-			httpError.Internal = err
-			eh.err = httpError
+			eh.err = echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
 }

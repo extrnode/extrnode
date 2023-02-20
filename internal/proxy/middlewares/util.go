@@ -28,13 +28,17 @@ type (
 )
 
 func errMsg(err error) string {
+	if err == nil {
+		return ""
+	}
+
 	httpErr, ok := err.(*echo.HTTPError)
 	if !ok || httpErr == nil {
-		return ""
+		return err.Error()
 	}
 	rpcResponse, ok := httpErr.Message.(*RPCResponse)
 	if !ok || rpcResponse == nil || rpcResponse.Error == nil {
-		return ""
+		return httpErr.Error()
 	}
 
 	return rpcResponse.Error.Message
@@ -52,6 +56,13 @@ var (
 		Error: &jsonrpc.RPCError{
 			Code:    2000,
 			Message: "No available targets",
+		},
+		JSONRPC: jsonrpcVersion,
+	}
+	extraNodeAttemptsExceededErrorResponse = &RPCResponse{
+		Error: &jsonrpc.RPCError{
+			Code:    2001,
+			Message: "Attempts exceeded",
 		},
 		JSONRPC: jsonrpcVersion,
 	}

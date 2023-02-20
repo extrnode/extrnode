@@ -100,14 +100,17 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		return nil, fmt.Errorf("ReadAll: %s", err)
 	}
 
-	var target *proxyTarget
-	var i int
-	var startTime time.Time
+	var (
+		i         int
+		target    *proxyTarget
+		startTime time.Time
+	)
+outerLoop:
 	for ; i < ptc.transport.maxAttempts; i++ {
 		select {
 		case <-req.Context().Done():
 			err = req.Context().Err()
-			break
+			break outerLoop
 		default:
 		}
 		target, err = ptc.transport.NextAvailableTarget(reqMethods)
@@ -157,6 +160,10 @@ func (ptc *proxyTransportWithContext) RoundTrip(req *http.Request) (resp *http.R
 		}
 
 		break
+	}
+
+	if resp == nil && err == nil {
+		err = echo.NewHTTPError(http.StatusInternalServerError, extraNodeAttemptsExceededErrorResponse)
 	}
 
 	if target != nil {
