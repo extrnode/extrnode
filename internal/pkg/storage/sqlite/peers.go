@@ -10,7 +10,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 
 	"extrnode-be/internal/models"
-	"extrnode-be/internal/pkg/log"
 )
 
 type (
@@ -183,8 +182,6 @@ func (s *Storage) GetEndpoints(blockchainID, limit int, isRpc, isValidator *bool
 	if err != nil {
 		return res, err
 	}
-
-	log.Logger.Scanner.Debugf("quety %s", query)
 
 	rows, err := s.db.QueryContext(s.ctx, query, args...)
 	if err != nil {
