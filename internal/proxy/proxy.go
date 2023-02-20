@@ -66,6 +66,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
 
+	delayed_insertion.NewAggregator(ctx, chStorage)
 	p := &proxy{
 		proxyPort:     cfg.Proxy.Port,
 		metricsPort:   cfg.Proxy.MetricsPort,

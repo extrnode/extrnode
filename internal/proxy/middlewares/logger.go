@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/labstack/echo/v4"
@@ -85,6 +86,7 @@ func buildStatStruct(ip, requestId string, statusCode int, latency int64, endpoi
 		UserAgent:      userAgent,
 		RpcMethod:      rpcMethod,
 		RpcRequestData: getContextValueForRequest(rpcMethod, reqBody),
+		Timestamp:      time.Now().UTC(),
 	}
 }
 

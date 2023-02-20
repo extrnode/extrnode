@@ -65,7 +65,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				if rpcErr != nil {
 					cc.SetRpcErrors([]int{rpcErr.Code})
 					cc.SetProxyUserError(true)
-					return echo.NewHTTPError(http.StatusOK, RPCResponse{
+					return echo.NewHTTPError(http.StatusOK, &RPCResponse{
 						Error:   rpcErr,
 						JSONRPC: jsonrpcVersion,
 						ID:      parsedJson.ID,
@@ -89,7 +89,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 					if rpcErr != nil {
 						cc.SetRpcErrors([]int{rpcErr.Code})
 						cc.SetProxyUserError(true)
-						return echo.NewHTTPError(http.StatusOK, RPCResponse{
+						return echo.NewHTTPError(http.StatusOK, &RPCResponse{
 							Error:   rpcErr,
 							JSONRPC: jsonrpcVersion,
 							ID:      r.ID,

@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	flushAmount = 1000
+	flushAmount        = 1000
+	aggregatorInterval = 12 * time.Hour
 )
 
 type (
@@ -26,6 +27,10 @@ type (
 		mx            sync.Mutex
 		flushInterval time.Duration
 		cache         []T
+	}
+	Aggregator struct {
+		ctx       context.Context
+		chStorage *clickhouse.Storage
 	}
 )
 
@@ -43,6 +48,20 @@ func New[T collectorPossibleTypes](ctx context.Context, cfg config.Config, chSto
 	}
 
 	go c.start()
+
+	return
+}
+
+func NewAggregator(ctx context.Context, chStorage *clickhouse.Storage) (a *Aggregator) {
+	a = &Aggregator{
+		ctx:       ctx,
+		chStorage: chStorage,
+	}
+	if chStorage == nil {
+		return
+	}
+
+	go a.start()
 
 	return
 }
@@ -65,6 +84,47 @@ func (c *Collector[T]) start() {
 			}
 		}
 	}
+}
+
+func (a *Aggregator) start() {
+	err := a.aggregate()
+	if err != nil {
+		log.Logger.Collector.Errorf("aggregate: %s", err)
+	}
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			err := a.aggregate()
+			if err != nil {
+				log.Logger.Collector.Errorf("aggregate: %s", err)
+			}
+			return
+
+		case <-time.After(aggregatorInterval):
+			err := a.aggregate()
+			if err != nil {
+				log.Logger.Collector.Errorf("aggregate: %s", err)
+			}
+		}
+	}
+}
+
+func (a *Aggregator) aggregate() error {
+	err := a.chStorage.InsertAggregateUserData()
+	if err != nil {
+		return fmt.Errorf("InsertAggregateUserData: %s", err)
+	}
+	err = a.chStorage.InsertAggregateAnalysisStats()
+	if err != nil {
+		return fmt.Errorf("InsertAggregateAnalysisStats: %s", err)
+	}
+	err = a.chStorage.DeleteOutdatedStats()
+	if err != nil {
+		return fmt.Errorf("DeleteOutdatedStats: %s", err)
+	}
+
+	return nil
 }
 
 func (c *Collector[T]) flushData() error {
