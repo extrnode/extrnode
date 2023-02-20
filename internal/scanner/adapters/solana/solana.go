@@ -159,7 +159,7 @@ func (a *SolanaAdapter) CheckOutdatedNodes() error {
 	var mx sync.Mutex
 	trueValue := true
 
-	peers, err := a.storage.GetPeers(false, &trueValue, &trueValue, &trueValue, &a.blockchainID)
+	peers, err := a.storage.GetPeers(false, &trueValue, &trueValue, nil, &a.blockchainID)
 	if err != nil {
 		return fmt.Errorf("GetPeers: %s", err)
 	}
