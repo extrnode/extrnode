@@ -94,9 +94,28 @@ func getContextValueForRequest(rpcMethod, reqBody string) (res string) {
 	}
 
 	var parsedJson RPCRequest
-	err := newJsonDecoder([]byte(reqBody), false).Decode(&parsedJson)
-	if err != nil {
-		log.Logger.Proxy.Errorf("getContextValueForRequest: json.Unmarshal: %s", err)
+	switch fs := reqBody[0]; {
+	case fs == '{':
+		err := newJsonDecoder([]byte(reqBody), false).Decode(&parsedJson)
+		if err != nil {
+			log.Logger.Proxy.Errorf("getContextValueForRequest: json.Unmarshal: %s", err)
+			return
+		}
+	case fs == '[':
+		var parsedJsons []RPCRequest
+		err := newJsonDecoder([]byte(reqBody), false).Decode(&parsedJsons)
+		if err != nil {
+			log.Logger.Proxy.Errorf("getContextValueForRequest: json.Unmarshal: %s", err)
+			return
+		}
+		if len(parsedJsons) == 0 {
+			log.Logger.Proxy.Errorf("getContextValueForRequest: invalid reqBody: %s", reqBody)
+			return
+		}
+
+		parsedJson = parsedJsons[0]
+	default:
+		log.Logger.Proxy.Errorf("invalid json first symbol: %s", string(fs))
 		return
 	}
 
@@ -116,7 +135,7 @@ func getContextValueForRequest(rpcMethod, reqBody string) (res string) {
 
 	if parsedJson.Method == solana2.SendTransaction {
 		var tx solana.Transaction
-		err = tx.UnmarshalBase64(res)
+		err := tx.UnmarshalBase64(res)
 		if err != nil {
 			log.Logger.Proxy.Errorf("getContextValueForRequest: tx.Unmarshal: %s", err)
 			return ""
