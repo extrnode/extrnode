@@ -24,6 +24,7 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			cc := c.(*echo2.CustomContext)
 			if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
+				cc.SetProxyUserError(true)
 				return echo.NewHTTPError(http.StatusUnsupportedMediaType, invalidContentTypeErrorResponse)
 			}
 
@@ -41,6 +42,8 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				return r
 			}, string(reqBody)))
 			if len(reqBody) == 0 {
+				cc.SetRpcErrors([]int{parseErrorResponse.Error.Code})
+				cc.SetProxyUserError(true)
 				return echo.NewHTTPError(http.StatusOK, parseErrorResponse) // solana mainnet return parse err in this case
 			}
 
@@ -53,11 +56,15 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				parsedJson := RPCRequest{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
+					cc.SetRpcErrors([]int{parseErrorResponse.Error.Code})
+					cc.SetProxyUserError(true)
 					return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 				}
 
 				rpcErr := checkJsonRpcBody(parsedJson)
 				if rpcErr != nil {
+					cc.SetRpcErrors([]int{rpcErr.Code})
+					cc.SetProxyUserError(true)
 					return echo.NewHTTPError(http.StatusOK, RPCResponse{
 						Error:   rpcErr,
 						JSONRPC: jsonrpcVersion,
@@ -69,6 +76,8 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 				parsedJson := RPCRequests{}
 				err := decoder.Decode(&parsedJson)
 				if err != nil {
+					cc.SetRpcErrors([]int{parseErrorResponse.Error.Code})
+					cc.SetProxyUserError(true)
 					return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 				}
 
@@ -78,6 +87,8 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 					}
 					rpcErr := checkJsonRpcBody(*r)
 					if rpcErr != nil {
+						cc.SetRpcErrors([]int{rpcErr.Code})
+						cc.SetProxyUserError(true)
 						return echo.NewHTTPError(http.StatusOK, RPCResponse{
 							Error:   rpcErr,
 							JSONRPC: jsonrpcVersion,
@@ -87,6 +98,8 @@ func NewValidatorMiddleware() echo.MiddlewareFunc {
 					methodArray = append(methodArray, r.Method)
 				}
 			default:
+				cc.SetRpcErrors([]int{parseErrorResponse.Error.Code})
+				cc.SetProxyUserError(true)
 				return echo.NewHTTPError(http.StatusOK, parseErrorResponse)
 			}
 			cc.SetReqMethods(methodArray)

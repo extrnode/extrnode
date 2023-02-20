@@ -115,6 +115,8 @@ outerLoop:
 		}
 		target, err = ptc.transport.NextAvailableTarget(reqMethods)
 		if err != nil {
+			ptc.c.SetProxyHasError(true)
+			ptc.c.SetRpcErrors([]int{extraNodeNoAvailableTargetsErrorResponse.Error.Code})
 			return nil, echo.NewHTTPError(http.StatusServiceUnavailable, extraNodeNoAvailableTargetsErrorResponse)
 		}
 
@@ -163,6 +165,7 @@ outerLoop:
 	}
 
 	if resp == nil && err == nil {
+		ptc.c.SetRpcErrors([]int{extraNodeAttemptsExceededErrorResponse.Error.Code})
 		err = echo.NewHTTPError(http.StatusInternalServerError, extraNodeAttemptsExceededErrorResponse)
 	}
 
