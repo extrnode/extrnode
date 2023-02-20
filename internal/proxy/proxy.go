@@ -54,7 +54,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 
 	slStorage, err := sqlite.New(ctx, cfg.SL)
 	if err != nil {
-		return nil, fmt.Errorf("PG storage init: %s", err)
+		return nil, fmt.Errorf("SL storage init: %s", err)
 	}
 	chStorage, err := clickhouse.New(cfg.CH.DSN, cfg.Scanner.Hostname)
 	if err != nil {
