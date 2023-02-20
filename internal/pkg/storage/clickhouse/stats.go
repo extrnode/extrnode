@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"extrnode-be/internal/pkg/log"
 )
@@ -24,6 +25,7 @@ type Stat struct {
 	// for getAccountInfo - account
 	// for getProgramAccounts - programID
 	RpcRequestData string
+	Timestamp      time.Time
 }
 
 func (s *Storage) BatchInsertStats(stats []Stat) error {
@@ -54,7 +56,8 @@ func (s *Storage) BatchInsertStats(stats []Stat) error {
         rpc_error_code,
         user_agent,
         rpc_method,
-        rpc_request_data
+        rpc_request_data,
+        timestamp
 	)`)
 	if err != nil {
 		return fmt.Errorf("prepare statement error: %s", err)
@@ -73,10 +76,40 @@ func (s *Storage) BatchInsertStats(stats []Stat) error {
 			s.UserAgent,
 			s.RpcMethod,
 			s.RpcRequestData,
+			s.Timestamp,
 		)
 		if err != nil {
 			return fmt.Errorf("exec statement error: %s", err)
 		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx commit error: %s", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteOutdatedStats() error {
+	tx, err := s.conn.Begin()
+	if err != nil {
+		return fmt.Errorf("tx begin error: %s", err)
+	}
+
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && err != sql.ErrTxDone {
+			log.Logger.General.Errorf("tx rollback error: %s", err)
+		}
+	}()
+
+	query := `ALTER TABLE stats DELETE
+    	WHERE toDate(now()) > toDate(timestamp);`
+
+	_, err = tx.Exec(query)
+	if err != nil {
+		return fmt.Errorf("exec statement error: %s", err)
 	}
 
 	err = tx.Commit()
