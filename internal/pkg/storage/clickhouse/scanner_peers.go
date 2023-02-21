@@ -46,7 +46,7 @@ func (s *Storage) BatchInsertScannerPeers(sps []ScannerPeer) error {
 
 	for _, sm := range sps {
 		_, err = stmt.Exec(
-			s.hostname,
+			sm.ServerId,
 			sm.Time,
 			sm.Peer,
 			sm.TimeConnectMs,

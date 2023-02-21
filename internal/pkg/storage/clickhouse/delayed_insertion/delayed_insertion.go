@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 )
@@ -22,7 +21,6 @@ type (
 	}
 	Collector[T collectorPossibleTypes] struct {
 		ctx           context.Context
-		cfg           config.Config
 		chStorage     *clickhouse.Storage
 		mx            sync.Mutex
 		flushInterval time.Duration
@@ -34,10 +32,9 @@ type (
 	}
 )
 
-func New[T collectorPossibleTypes](ctx context.Context, cfg config.Config, chStorage *clickhouse.Storage, flushInterval time.Duration) (c *Collector[T]) {
+func New[T collectorPossibleTypes](ctx context.Context, chStorage *clickhouse.Storage, flushInterval time.Duration) (c *Collector[T]) {
 	c = &Collector[T]{
 		ctx:           ctx,
-		cfg:           cfg,
 		chStorage:     chStorage,
 		flushInterval: flushInterval,
 		cache:         make([]T, 0, flushAmount),

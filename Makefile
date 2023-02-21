@@ -1,4 +1,4 @@
-.PHONY: build start dev stop test mocks lint
+.PHONY: build start dev stop test mocks lint clickhouse
 
 SHELL := /bin/bash
 
@@ -13,12 +13,11 @@ build:
 start:
 	@docker-compose up -d
 
-dev:
-	@docker-compose up -d postgres
-	@docker-compose up -d clickhouse
+dev: clickhouse
+	@docker-compose -f docker-compose-postgres.yml up -d postgres
 
 clickhouse:
-	@docker-compose -f docker-compose-services.yml up -d clickhouse
+	@docker-compose -f docker-compose-clickhouse.yml up -d clickhouse
 
 stop:
 	@docker-compose stop

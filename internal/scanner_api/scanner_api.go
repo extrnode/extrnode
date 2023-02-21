@@ -14,14 +14,15 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	echo2 "extrnode-be/internal/pkg/util/echo"
+	"extrnode-be/internal/scanner_api/config"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 type scannerApi struct {
-	conf      config.ScannerApiConfig
+	conf      config_types.ScannerApiConfig
 	certData  []byte
 	router    *echo.Echo
 	slStorage sqlite.Storage

@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
 	"extrnode-be/internal/user_api"
+	"extrnode-be/internal/user_api/config"
 )
 
 const (
@@ -35,10 +36,11 @@ func main() {
 		log.Logger.UserApi.Fatalf("Log setup: %s", err)
 	}
 
-	cfg, err := config.LoadFile(f.envFile)
+	cfg, err := config_types.LoadFile[config.Config](f.envFile)
 	if err != nil {
 		log.Logger.UserApi.Fatalf("Config: %s", err)
 	}
+
 	log.Logger.UserApi.Info("Start service")
 
 	app, err := user_api.NewAPI(cfg)

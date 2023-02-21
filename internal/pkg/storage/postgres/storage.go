@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 
 	"github.com/go-pg/migrations/v8"
 	"github.com/go-pg/pg/v10"
@@ -18,7 +18,7 @@ type Storage struct {
 	isTx bool
 }
 
-func New(ctx context.Context, cfg config.PostgresConfig) (s Storage, err error) {
+func New(ctx context.Context, cfg config_types.PostgresConfig) (s Storage, err error) {
 	// DialTimeout default is 5s
 	db := pg.Connect(&pg.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),

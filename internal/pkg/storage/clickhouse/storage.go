@@ -11,11 +11,10 @@ import (
 )
 
 type Storage struct {
-	conn     *sql.DB
-	hostname string
+	conn *sql.DB
 }
 
-func New(dsn, hostname string) (s *Storage, err error) {
+func New(dsn string) (s *Storage, err error) {
 	if dsn == "" {
 		log.Logger.General.Infof("start without CH")
 		return nil, nil
@@ -36,7 +35,7 @@ func New(dsn, hostname string) (s *Storage, err error) {
 		return s, fmt.Errorf("connection ping error: %s", err)
 	}
 
-	return &Storage{conn: conn, hostname: hostname}, nil
+	return &Storage{conn: conn}, nil
 }
 
 func (s *Storage) Close() error {

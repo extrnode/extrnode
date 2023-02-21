@@ -14,6 +14,7 @@ import (
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/sqlite"
+	"extrnode-be/internal/scanner/config"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
 
@@ -29,6 +30,7 @@ var maxSupportedTransactionVersion uint64 = 0
 
 type SolanaAdapter struct {
 	ctx                    context.Context
+	cfg                    config.Config
 	storage                sqlite.Storage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
@@ -41,7 +43,7 @@ type SolanaAdapter struct {
 	scannerPeersCollector   *delayed_insertion.Collector[clickhouse.ScannerPeer]
 }
 
-func NewSolanaAdapter(ctx context.Context, storage sqlite.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
+func NewSolanaAdapter(ctx context.Context, cfg config.Config, storage sqlite.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
 	blockchain, err := storage.GetBlockchainByName(solanaBlockchain)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainByName: %s", err)
@@ -54,6 +56,7 @@ func NewSolanaAdapter(ctx context.Context, storage sqlite.Storage, scannerMethod
 		storage:                 storage,
 		blockchainID:            blockchain.ID,
 		ctx:                     ctx,
+		cfg:                     cfg,
 		baseRpcClient:           createRpcWithTimeout(rpc.MainNetBeta_RPC),
 		scannerMethodsCollector: scannerMethodsCollector,
 		scannerPeersCollector:   scannerPeersCollector,

@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	migrate "github.com/rubenv/sql-migrate"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 )
 
@@ -21,7 +21,7 @@ type Storage struct {
 	db  *sql.DB
 }
 
-func New(ctx context.Context, cfg config.SQLiteConfig) (s Storage, err error) {
+func New(ctx context.Context, cfg config_types.SQLiteConfig) (s Storage, err error) {
 	db, err := sql.Open(driver, fmt.Sprintf("file:%s?mode=rwc&_fk=1&_timeout=10000&_cache_size=-10000&_synchronous=NORMAL&_journal_mode=WAL", cfg.DBPath)) // cache=shared
 	if err != nil {
 		return s, fmt.Errorf("sql.Open: %s", err)

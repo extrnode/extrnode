@@ -42,8 +42,6 @@ services:
     tty: true
     ports:
       - "${UAPI_PORT}:${UAPI_PORT}"
-    depends_on:
-      - postgres
     env_file:
       - .env
     entrypoint: "user_api"
@@ -72,22 +70,5 @@ services:
     volumes:
       - sqlite:/sqlite
 
-  postgres:
-    container_name: extrnode-postgres
-    image: postgres:11
-    ports:
-      - "5432:5432"
-    restart: always
-    environment:
-      POSTGRES_USER: "${PG_USER}"
-      POSTGRES_PASSWORD: "${PG_PASS}"
-      POSTGRES_DB: "${PG_DB}"
-    volumes:
-      - postgres:/var/lib/postgresql/data
-    logging:
-      options:
-        max-size: "50m"
-
 volumes:
-  postgres:
   sqlite:
