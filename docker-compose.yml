@@ -7,7 +7,6 @@ services:
     restart: always
     tty: true
     depends_on:
-      - postgres
       - clickhouse
     env_file:
       - .env
@@ -20,18 +19,16 @@ services:
     volumes:
       - sqlite:/sqlite
 
-  extrnode-api:
-    container_name: extrnode-api
+  extrnode-scanner-api:
+    container_name: extrnode-scanner-api
     image: extrnode-go:latest
     restart: always
     tty: true
     ports:
-      - "${API_PORT}:${API_PORT}"
-    depends_on:
-      - postgres
+      - "${SAPI_PORT}:${SAPI_PORT}"
     env_file:
       - .env
-    entrypoint: "api"
+    entrypoint: "scanner_api"
     command:
       - -log=debug
     logging:
@@ -39,6 +36,24 @@ services:
         max-size: "1g"
     volumes:
       - sqlite:/sqlite
+
+  extrnode-user-api:
+    container_name: extrnode-user-api
+    image: extrnode-go:latest
+    restart: always
+    tty: true
+    ports:
+      - "${UAPI_PORT}:${UAPI_PORT}"
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    entrypoint: "user_api"
+    command:
+      - -log=debug
+    logging:
+      options:
+        max-size: "1g"
 
   extrnode-proxy:
     container_name: extrnode-proxy

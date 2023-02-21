@@ -6,8 +6,11 @@ import (
 )
 
 func (c Config) validate() error {
-	if err := c.API.validate(); err != nil {
-		return fmt.Errorf("api: %s", err)
+	if err := c.SApi.validate(); err != nil {
+		return fmt.Errorf("scanner_api: %s", err)
+	}
+	if err := c.UApi.validate(); err != nil {
+		return fmt.Errorf("user_api: %s", err)
 	}
 	if err := c.Proxy.validate(); err != nil {
 		return fmt.Errorf("proxy: %s", err)
@@ -29,9 +32,20 @@ func (c Config) validate() error {
 	return nil
 }
 
-func (a ApiConfig) validate() error {
-	if a.Port == 0 {
+func (e ScannerApiConfig) validate() error {
+	if e.Port == 0 {
 		return errors.New("invalid port")
+	}
+
+	return nil
+}
+
+func (u UserApiConfig) validate() error {
+	if u.Port == 0 {
+		return errors.New("invalid port")
+	}
+	if u.FirebaseFilePath == "" {
+		return errors.New("invalid firebase file path")
 	}
 
 	return nil

@@ -1,2 +1,0 @@
-INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlock');
-INSERT INTO rpc.methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getVersion');

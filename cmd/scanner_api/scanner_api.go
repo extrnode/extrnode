@@ -7,11 +7,11 @@ import (
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
-	"extrnode-be/internal/scanner"
+	"extrnode-be/internal/scanner_api"
 )
 
 const (
-	waitTimeout = time.Minute
+	waitTimeout = time.Second * 10
 )
 
 type flags struct {
@@ -32,41 +32,25 @@ func main() {
 	f := getFlags()
 	err := log.Setup(f.logLevel)
 	if err != nil {
-		log.Logger.Scanner.Fatalf("Log setup: %s", err)
+		log.Logger.ScannerApi.Fatalf("Log setup: %s", err)
 	}
 
 	cfg, err := config.LoadFile(f.envFile)
 	if err != nil {
-		log.Logger.Scanner.Fatalf("Config: %s", err)
+		log.Logger.ScannerApi.Fatalf("Config: %s", err)
 	}
 
-	log.Logger.Scanner.Info("Start service")
+	log.Logger.ScannerApi.Info("Start service")
 
-	app, err := scanner.NewScanner(cfg)
+	app, err := scanner_api.NewAPI(cfg)
 	if err != nil {
-		log.Logger.Scanner.Fatalf("scanner error: %s", err)
+		log.Logger.ScannerApi.Fatalf("NewScannerAPI: %s", err)
 	}
 
-	// Run service
+	// API
 	go func() {
-		err := app.Run()
-		if err != nil {
-			log.Logger.Scanner.Fatalf("Scanner: %s", err)
-		}
-	}()
-
-	// Run nmap
-	go func() {
-		err := app.RunNmap()
-		if err != nil {
-			log.Logger.Scanner.Fatalf("NmapScan: %s", err)
-		}
-	}()
-
-	go func() {
-		err := app.CheckOutdatedNodes()
-		if err != nil {
-			log.Logger.Scanner.Fatalf("CheckOutdatedNodes: %s", err)
+		if err := app.Run(); err != nil {
+			log.Logger.ScannerApi.Fatalf("ScannerApi: %s", err)
 		}
 	}()
 
@@ -74,7 +58,7 @@ func main() {
 	util.GracefulStop(app.WaitGroup(), waitTimeout, func() {
 		err = app.Stop()
 		if err != nil {
-			log.Logger.Scanner.Errorf(err.Error())
+			log.Logger.ScannerApi.Errorf(err.Error())
 		}
 	})
 }

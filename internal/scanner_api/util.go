@@ -1,4 +1,4 @@
-package api
+package scanner_api
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ func textResp(ctx echo.Context, res []byte) error {
 	return err
 }
 
-func (a *api) getStats() (res models.Stat, err error) {
+func (a *scannerApi) getStats() (res models.Stat, err error) {
 	cacheValue, ok := a.cache.Get(statsCacheKey)
 	if ok {
 		return cacheValue.(models.Stat), nil
