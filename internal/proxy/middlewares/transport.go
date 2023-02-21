@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	echo2 "extrnode-be/internal/pkg/util/echo"
 
@@ -54,7 +54,7 @@ const (
 	secondsInHour              = 3600
 )
 
-func NewProxyTransport(withJail bool, failoverTargets config.FailoverTargets, scannedMethodList map[string]int) (*ProxyTransport, error) {
+func NewProxyTransport(withJail bool, failoverTargets config_types.FailoverTargets, scannedMethodList map[string]int) (*ProxyTransport, error) {
 	pt := &ProxyTransport{
 		transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,

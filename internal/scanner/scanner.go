@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/sqlite"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
+	"extrnode-be/internal/scanner/config"
 	"extrnode-be/internal/scanner/scaners/nmap"
 )
 
@@ -40,14 +40,14 @@ func NewScanner(cfg config.Config) (*scanner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SL storage init: %s", err)
 	}
-	chStorage, err := clickhouse.New(cfg.CH.DSN, cfg.Scanner.Hostname)
+	chStorage, err := clickhouse.New(cfg.CH.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
 
-	scannerMethodsCollector := delayed_insertion.New[clickhouse.ScannerMethod](ctx, cfg, chStorage, collectorInterval)
-	scannerPeersCollector := delayed_insertion.New[clickhouse.ScannerPeer](ctx, cfg, chStorage, collectorInterval)
-	solanaAdapter, err := solana.NewSolanaAdapter(ctx, slStorage, scannerMethodsCollector, scannerPeersCollector)
+	scannerMethodsCollector := delayed_insertion.New[clickhouse.ScannerMethod](ctx, chStorage, collectorInterval)
+	scannerPeersCollector := delayed_insertion.New[clickhouse.ScannerPeer](ctx, chStorage, collectorInterval)
+	solanaAdapter, err := solana.NewSolanaAdapter(ctx, cfg, slStorage, scannerMethodsCollector, scannerPeersCollector)
 	if err != nil {
 		return nil, fmt.Errorf("NewSolanaAdapter: %s", err)
 	}

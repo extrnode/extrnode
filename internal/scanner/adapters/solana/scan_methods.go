@@ -14,6 +14,7 @@ var solanaMainNetGenesisHash = solana.MustHashFromBase58("5eykt4UsFv8P8NJdTREpY1
 
 func (a *SolanaAdapter) updatePeerInfo(peer sqlite.PeerWithIpAndBlockchain, peerName string, isAlive, isRpc, isSSL, isMainNet, isValidator, deleteAllRpcMethods bool, version string) error {
 	a.scannerPeersCollector.Add(clickhouse.ScannerPeer{
+		ServerId:      a.cfg.Scanner.Hostname,
 		Time:          a.scanStartTime,
 		Peer:          peerName,
 		TimeConnectMs: 0,
@@ -91,6 +92,7 @@ func (a *SolanaAdapter) ScanMethods(peer sqlite.PeerWithIpAndBlockchain) error {
 		}
 
 		a.scannerMethodsCollector.Add(clickhouse.ScannerMethod{
+			ServerId:       a.cfg.Scanner.Hostname,
 			Time:           a.scanStartTime,
 			Peer:           peerName,
 			Method:         mName,

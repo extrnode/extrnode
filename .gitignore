@@ -31,7 +31,8 @@ distribution.yml
 .secrets
 .vscode
 mock_*
-.env
+.env*
+!.env*.example
 *.pem
 firebase.json
 /creds/*

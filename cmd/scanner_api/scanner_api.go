@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
 	"extrnode-be/internal/scanner_api"
+	"extrnode-be/internal/scanner_api/config"
 )
 
 const (
@@ -35,7 +36,7 @@ func main() {
 		log.Logger.ScannerApi.Fatalf("Log setup: %s", err)
 	}
 
-	cfg, err := config.LoadFile(f.envFile)
+	cfg, err := config_types.LoadFile[config.Config](f.envFile)
 	if err != nil {
 		log.Logger.ScannerApi.Fatalf("Config: %s", err)
 	}

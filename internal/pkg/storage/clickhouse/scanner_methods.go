@@ -52,7 +52,7 @@ func (s *Storage) BatchInsertScannerMethods(sms []ScannerMethod) error {
 
 	for _, sm := range sms {
 		_, err = stmt.Exec(
-			s.hostname,
+			sm.ServerId,
 			sm.Time,
 			sm.Peer,
 			sm.Method,

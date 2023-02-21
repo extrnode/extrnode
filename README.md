@@ -5,35 +5,60 @@ The results get written to DB.
 
 ## Build and Deployment (local)
 - install golang 1.19
-- install Postgresql 11
-- create a Postgresql DB
-- install Clickhouse 23.1
-- use migration for clickhouse [init-db.sh](build/clickhouse/init-db.sh)
-- install nmap from official site (https://nmap.org/)
-- setup env vars from [.env.example](.env.example) file
-- compile programs:
+- install and setup Clickhouse 23.1. Use migration for clickhouse [init-db.sh](build/clickhouse/init-db.sh)
 
+### Build [scanner](cmd/scanner)
+- install nmap from official site (https://nmap.org/)
+- setup env vars [.env.scanner.example](.env.scanner.example)
+- build
 ```
 CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner
-CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner_api
-CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/user_api
+```
+
+### Build [proxy](cmd/proxy)
+- add your certificates for https server in [creds](creds) dir (optional)
+- setup env vars [.env.proxy.example](.env.proxy.example)
+- build
+```
 CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/proxy
 ```
-- run ./scanner to start collecting new nodes
-- run ./scanner_api to start scanner api server
-- run ./user_api to start user api server
-- run ./proxy to start proxy balancer
 
-## Build and Deployment (via [docker-compose.yml](docker-compose.yml))
-- place filled [.env](.env.example) file into project root folder
+### Build [scanner api](cmd/scanner_api)
+- add your certificates for https server in [creds](creds) dir (optional)
+- setup env vars [.env.scanner_api.example](.env.scanner_api.example)
+- build
+```
+CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner_api
+```
+
+### Build [user service](cmd/user_api)
 - add your certificates for https server in [creds](creds) dir (optional)
 - add firebase.conf in [creds](creds) dir (required)
+- setup env vars [.env.user_api.example](.env.user_api.example)
+- install Postgresql 11
+- create a Postgresql DB
+- build
+```
+CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/user_api
+```
+
+### Run
+- `./scanner` to start collecting new nodes
+- `./scanner_api` to start scanner api server
+- `./user_api` to start user service
+- `./proxy` to start proxy balancer
+
+## Build and Deployment (via [docker-compose.yml](docker-compose.yml))
+- add your certificates for https server in [creds](creds) dir (optional)
+- add firebase.conf in [creds](creds) dir (required)
+- place filled [.env](.env.example) file into project root folder
 - build:
 ```
 make build
 ```
 - run:
 ```
+make dev
 make start
 ```
 - to stop containers run:
@@ -61,6 +86,6 @@ created within first time run of the data loader
 ### Run tests
     make test
 ### Run for development
-Will run dependencies like clickhouse with ports open locally
+Will run dependencies like clickhouse and postgres with ports open locally
 
     make dev

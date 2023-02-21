@@ -13,7 +13,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"google.golang.org/api/option"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	echo2 "extrnode-be/internal/pkg/util/echo"
 )
@@ -40,7 +40,7 @@ var (
 	ErrAuthUnknown      = echo.NewHTTPError(http.StatusUnauthorized, "Auth unknown error")
 )
 
-func NewAuthMiddleware(ctx context.Context, conf config.UserApiConfig) (a AuthMiddleware, err error) {
+func NewAuthMiddleware(ctx context.Context, conf config_types.UserApiConfig) (a AuthMiddleware, err error) {
 	opt := option.WithCredentialsFile(conf.FirebaseFilePath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {

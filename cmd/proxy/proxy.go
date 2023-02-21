@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
 	"extrnode-be/internal/proxy"
+	"extrnode-be/internal/proxy/config"
 )
 
 const (
@@ -35,7 +36,7 @@ func main() {
 		log.Logger.Proxy.Fatalf("Log setup: %s", err)
 	}
 
-	cfg, err := config.LoadFile(f.envFile)
+	cfg, err := config_types.LoadFile[config.Config](f.envFile)
 	if err != nil {
 		log.Logger.Proxy.Fatalf("Config: %s", err)
 	}

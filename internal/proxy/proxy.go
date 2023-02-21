@@ -12,13 +12,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/metrics"
 	"extrnode-be/internal/pkg/storage/clickhouse"
 	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
 	"extrnode-be/internal/pkg/storage/sqlite"
 	echo2 "extrnode-be/internal/pkg/util/echo"
+	"extrnode-be/internal/proxy/config"
 	"extrnode-be/internal/proxy/middlewares"
 )
 
@@ -38,7 +39,7 @@ type proxy struct {
 	ctxCancel     context.CancelFunc
 
 	blockchainIDs   map[string]int
-	failoverTargets config.FailoverTargets
+	failoverTargets config_types.FailoverTargets
 
 	statsCollector *delayed_insertion.Collector[clickhouse.Stat]
 }
@@ -56,7 +57,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SL storage init: %s", err)
 	}
-	chStorage, err := clickhouse.New(cfg.CH.DSN, cfg.Scanner.Hostname)
+	chStorage, err := clickhouse.New(cfg.CH.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
@@ -80,7 +81,7 @@ func NewProxy(cfg config.Config) (*proxy, error) {
 		blockchainIDs:   blockchainsMap,
 		failoverTargets: cfg.Proxy.FailoverEndpoints,
 
-		statsCollector: delayed_insertion.New[clickhouse.Stat](ctx, cfg, chStorage, collectorInterval),
+		statsCollector: delayed_insertion.New[clickhouse.Stat](ctx, chStorage, collectorInterval),
 	}
 
 	if cfg.Proxy.CertFile != "" {

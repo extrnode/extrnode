@@ -14,10 +14,11 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
-	"extrnode-be/internal/pkg/config"
+	"extrnode-be/internal/pkg/config_types"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/storage/postgres"
 	echo2 "extrnode-be/internal/pkg/util/echo"
+	"extrnode-be/internal/user_api/config"
 	"extrnode-be/internal/user_api/middlewares"
 )
 
@@ -27,7 +28,7 @@ import (
 var swaggerDist embed.FS
 
 type userApi struct {
-	conf      config.UserApiConfig
+	conf      config_types.UserApiConfig
 	certData  []byte
 	router    *echo.Echo
 	pgStorage postgres.Storage
