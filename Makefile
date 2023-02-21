@@ -17,6 +17,9 @@ dev:
 	@docker-compose up -d postgres
 	@docker-compose up -d clickhouse
 
+clickhouse:
+	@docker-compose -f docker-compose-services.yml up -d clickhouse
+
 stop:
 	@docker-compose stop
 

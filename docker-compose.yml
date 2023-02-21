@@ -6,8 +6,6 @@ services:
     image: extrnode-go:latest
     restart: always
     tty: true
-    depends_on:
-      - clickhouse
     env_file:
       - .env
     entrypoint: "scanner"
@@ -63,8 +61,6 @@ services:
     ports:
       - "${PROXY_PORT}:${PROXY_PORT}"
       - "${PROXY_METRICS_PORT}:${PROXY_METRICS_PORT}"
-    depends_on:
-      - clickhouse
     env_file:
       - .env
     entrypoint: "proxy"
@@ -92,27 +88,6 @@ services:
       options:
         max-size: "50m"
 
-  clickhouse:
-    container_name: extrnode-clickhouse
-    image: "clickhouse/clickhouse-server:23.1"
-    restart: always
-    ulimits:
-      nproc: 65535
-      nofile:
-        soft: 262144
-        hard: 262144
-    ports:
-      - "127.0.0.1:8123:8123"
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9009:9009"
-    volumes:
-      - clickhouse:/var/lib/clickhouse
-      - ./build/clickhouse:/docker-entrypoint-initdb.d
-    logging:
-      options:
-        max-size: "50m"
-
 volumes:
   postgres:
   sqlite:
-  clickhouse:
