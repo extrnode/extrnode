@@ -1,4 +1,4 @@
-package api
+package scanner_api
 
 import (
 	"fmt"
@@ -22,17 +22,17 @@ const (
 	solanaBlockchain = "solana"
 )
 
-func (a *api) statsHandler(ctx echo.Context) error {
+func (a *scannerApi) statsHandler(ctx echo.Context) error {
 	res, err := a.getStats()
 	if err != nil {
-		log.Logger.Api.Errorf("getStats: %s", err)
+		log.Logger.ScannerApi.Errorf("getStats: %s", err)
 		return err
 	}
 
 	return ctx.JSON(http.StatusOK, res)
 }
 
-func (a *api) endpointsHandler(ctx echo.Context) error {
+func (a *scannerApi) endpointsHandler(ctx echo.Context) error {
 	var (
 		err error
 		ok  bool
@@ -50,7 +50,7 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 	blockchainID, ok := a.blockchainIDs[solanaBlockchain]
 	if !ok {
 		err = fmt.Errorf("endpointsHandler: fail to get blockchainID")
-		log.Logger.Api.Errorf(err.Error())
+		log.Logger.ScannerApi.Errorf(err.Error())
 		return err
 	}
 	if paramString := ctx.QueryParam("limit"); paramString != "" {
@@ -108,7 +108,7 @@ func (a *api) endpointsHandler(ctx echo.Context) error {
 
 	res, err := a.slStorage.GetEndpoints(blockchainID, limit, isRpc, isValidator, asnCountries, versions, supportedMethods)
 	if err != nil {
-		log.Logger.Api.Errorf("endpointsHandler: GetEndpoints: %s", err)
+		log.Logger.ScannerApi.Errorf("endpointsHandler: GetEndpoints: %s", err)
 		return err
 	}
 

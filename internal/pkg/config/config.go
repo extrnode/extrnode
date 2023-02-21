@@ -11,7 +11,8 @@ import (
 // struct field names are used for env variable names. Edit with care
 type Config struct {
 	Scanner ScannerConfig
-	API     ApiConfig
+	SApi    ScannerApiConfig
+	UApi    UserApiConfig
 	Proxy   ProxyConfig
 	SL      SQLiteConfig
 	PG      PostgresConfig
@@ -30,7 +31,12 @@ type ProxyConfig struct {
 	FailoverEndpoints FailoverTargets `required:"false" split_words:"true"`
 }
 
-type ApiConfig struct {
+type ScannerApiConfig struct {
+	Port     uint64 `required:"true" split_words:"true"`
+	CertFile string `required:"false" split_words:"true"`
+}
+
+type UserApiConfig struct {
 	Port             uint64 `required:"true" split_words:"true"`
 	CertFile         string `required:"false" split_words:"true"`
 	FirebaseFilePath string `required:"true" split_words:"true"`

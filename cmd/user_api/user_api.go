@@ -4,10 +4,10 @@ import (
 	"flag"
 	"time"
 
-	"extrnode-be/internal/api"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
 	"extrnode-be/internal/pkg/util"
+	"extrnode-be/internal/user_api"
 )
 
 const (
@@ -32,25 +32,24 @@ func main() {
 	f := getFlags()
 	err := log.Setup(f.logLevel)
 	if err != nil {
-		log.Logger.Api.Fatalf("Log setup: %s", err)
+		log.Logger.UserApi.Fatalf("Log setup: %s", err)
 	}
 
 	cfg, err := config.LoadFile(f.envFile)
 	if err != nil {
-		log.Logger.Api.Fatalf("Config: %s", err)
+		log.Logger.UserApi.Fatalf("Config: %s", err)
 	}
+	log.Logger.UserApi.Info("Start service")
 
-	log.Logger.Api.Info("Start service")
-
-	app, err := api.NewAPI(cfg)
+	app, err := user_api.NewAPI(cfg)
 	if err != nil {
-		log.Logger.Api.Fatalf("NewAPI: %s", err)
+		log.Logger.UserApi.Fatalf("NewuserApi: %s", err)
 	}
 
 	// API
 	go func() {
 		if err := app.Run(); err != nil {
-			log.Logger.Api.Fatalf("API: %s", err)
+			log.Logger.UserApi.Fatalf("userApi: %s", err)
 		}
 	}()
 
@@ -58,7 +57,7 @@ func main() {
 	util.GracefulStop(app.WaitGroup(), waitTimeout, func() {
 		err = app.Stop()
 		if err != nil {
-			log.Logger.Api.Errorf(err.Error())
+			log.Logger.UserApi.Errorf(err.Error())
 		}
 	})
 }

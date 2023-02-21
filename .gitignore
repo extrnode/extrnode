@@ -20,7 +20,8 @@ vendor/
 config.yml*
 distribution.yml
 /scanner
-/api
+/scanner_api
+/user_api
 /proxy
 
 !/.golangci.yml

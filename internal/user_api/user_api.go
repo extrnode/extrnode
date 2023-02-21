@@ -1,4 +1,4 @@
-package api
+package user_api
 
 import (
 	"context"
@@ -14,13 +14,11 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/patrickmn/go-cache"
 
-	"extrnode-be/internal/pkg/storage/postgres"
-	echo2 "extrnode-be/internal/pkg/util/echo"
-
-	"extrnode-be/internal/api/middlewares"
 	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage/sqlite"
+	"extrnode-be/internal/pkg/storage/postgres"
+	echo2 "extrnode-be/internal/pkg/util/echo"
+	"extrnode-be/internal/user_api/middlewares"
 )
 
 // holds swagger static web server content.
@@ -28,50 +26,33 @@ import (
 //go:embed swaggerui
 var swaggerDist embed.FS
 
-type api struct {
-	conf      config.ApiConfig
+type userApi struct {
+	conf      config.UserApiConfig
 	certData  []byte
 	router    *echo.Echo
-	slStorage sqlite.Storage
 	pgStorage postgres.Storage
 	cache     *cache.Cache
 	waitGroup *sync.WaitGroup
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 
-	supportedOutputFormats map[string]struct{}
-	blockchainIDs          map[string]int
-	apiPrivateKey          solana.PrivateKey
+	apiPrivateKey solana.PrivateKey
 }
 
 const (
-	jsonOutputFormat    = "json"
-	csvOutputFormat     = "csv"
-	haproxyOutputFormat = "haproxy"
-
 	cacheTTL = 5 * time.Minute
 
 	serverShutdownTimeout = 10 * time.Second
 )
 
-func NewAPI(cfg config.Config) (*api, error) {
+func NewAPI(cfg config.Config) (*userApi, error) {
 	// increase uuid generation productivity
 	//uuid.EnableRandPool()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	slStorage, err := sqlite.New(ctx, cfg.SL)
-	if err != nil {
-		return nil, fmt.Errorf("SL storage init: %s", err)
-	}
-
 	pgStorage, err := postgres.New(ctx, cfg.PG)
 	if err != nil {
 		return nil, fmt.Errorf("PG storage init: %s", err)
-	}
-
-	blockchainsMap, err := slStorage.GetBlockchainsMap()
-	if err != nil {
-		return nil, fmt.Errorf("GetBlockchainsMap: %s", err)
 	}
 
 	// TODO: get from config
@@ -80,29 +61,22 @@ func NewAPI(cfg config.Config) (*api, error) {
 		return nil, fmt.Errorf("NewRandomPrivateKey: %s", err)
 	}
 
-	a := &api{
-		conf:      cfg.API,
+	a := &userApi{
+		conf:      cfg.UApi,
 		router:    echo.New(),
-		slStorage: slStorage,
 		pgStorage: pgStorage,
 		cache:     cache.New(cacheTTL, cacheTTL),
 
-		waitGroup: &sync.WaitGroup{},
-		ctx:       ctx,
-		ctxCancel: cancelFunc,
-		supportedOutputFormats: map[string]struct{}{
-			jsonOutputFormat:    {},
-			csvOutputFormat:     {},
-			haproxyOutputFormat: {},
-		},
-		blockchainIDs: blockchainsMap,
+		waitGroup:     &sync.WaitGroup{},
+		ctx:           ctx,
+		ctxCancel:     cancelFunc,
 		apiPrivateKey: privKey,
 	}
 
-	if cfg.API.CertFile != "" {
-		a.certData, err = os.ReadFile(cfg.API.CertFile)
+	if cfg.UApi.CertFile != "" {
+		a.certData, err = os.ReadFile(cfg.UApi.CertFile)
 		if err != nil {
-			return nil, fmt.Errorf("fail to read certificate (%s): %s", cfg.API.CertFile, err)
+			return nil, fmt.Errorf("fail to read certificate (%s): %s", cfg.UApi.CertFile, err)
 		}
 	}
 
@@ -113,17 +87,13 @@ func NewAPI(cfg config.Config) (*api, error) {
 	return a, err
 }
 
-func (a *api) initApiHandlers() error {
+func (a *userApi) initApiHandlers() error {
 	echo2.InitHandlersStart(a.router)
 
 	a.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
-
-	// public
-	a.router.GET("/endpoints", a.endpointsHandler)
-	a.router.GET("/stats", a.statsHandler)
 
 	// api docs
 	a.router.StaticFS("/swagger", echo.MustSubFS(swaggerDist, "swaggerui"))
@@ -139,7 +109,7 @@ func (a *api) initApiHandlers() error {
 	return nil
 }
 
-func (a *api) Run() (err error) {
+func (a *userApi) Run() (err error) {
 	addr := fmt.Sprintf(":%d", a.conf.Port)
 	if len(a.certData) != 0 {
 		err = a.router.StartTLS(addr, a.certData, a.certData)
@@ -153,19 +123,19 @@ func (a *api) Run() (err error) {
 	return nil
 }
 
-func (a *api) Stop() error {
+func (a *userApi) Stop() error {
 	ctx, cancel := context.WithTimeout(a.ctx, serverShutdownTimeout)
 	defer cancel()
 
 	err := a.router.Shutdown(ctx)
 	if err != nil {
-		log.Logger.Api.Errorf("router.Shutdown: %s", err)
+		log.Logger.UserApi.Errorf("router.Shutdown: %s", err)
 	}
 	a.ctxCancel()
 
 	return nil
 }
 
-func (a *api) WaitGroup() *sync.WaitGroup {
+func (a *userApi) WaitGroup() *sync.WaitGroup {
 	return a.waitGroup
 }

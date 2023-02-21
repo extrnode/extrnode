@@ -14,12 +14,14 @@ The results get written to DB.
 - compile programs:
 
 ```
-CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/scanner
-CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/api
-CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/proxy
+CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner
+CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/scanner_api
+CGO_ENABLED=0 GOOS=linux go build -a -v -installsuffix cgo ./cmd/user_api
+CGO_ENABLED=1 GOOS=linux go build -a -v -installsuffix cgo --tags "sqlite_foreign_keys" ./cmd/proxy
 ```
 - run ./scanner to start collecting new nodes
-- run ./api to start api server
+- run ./scanner_api to start scanner api server
+- run ./user_api to start user api server
 - run ./proxy to start proxy balancer
 
 ## Build and Deployment (via [docker-compose.yml](docker-compose.yml))

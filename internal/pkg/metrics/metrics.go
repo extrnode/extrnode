@@ -40,7 +40,7 @@ func init() {
 	initMetric(&metrics.startTime, newGauge(
 		"startTime",
 		"start_time",
-		"api start time",
+		"scanner_api start time",
 	))
 
 	initMetric(&metrics.availableEndpoints, newGauge(

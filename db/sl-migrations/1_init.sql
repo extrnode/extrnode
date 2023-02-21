@@ -128,37 +128,37 @@ create table if not exists rpc_peers_methods
 -- default data
 INSERT INTO blockchains (blc_name) VALUES ('solana');
 
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getAccountInfo');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'sendTransaction');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getSignaturesForAddress');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getLatestBlockhash');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getSlot');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getTransaction');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getInflationReward');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getProgramAccounts');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getSignatureStatuses');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountBalance');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getMultipleAccounts');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getEpochInfo');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getBalance');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getRecentPerformanceSamples');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getVoteAccounts');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getInflationRate');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getSupply');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getBlockTime');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getBlockHeight');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getMinimumBalanceForRentExemption');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'isBlockhashValid');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getTransactionCount');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid  FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountsByOwner');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getBlock');
-INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), 'getVersion');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getAccountInfo');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'sendTransaction');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getSignaturesForAddress');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getLatestBlockhash');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getSlot');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTransaction');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getInflationReward');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getProgramAccounts');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getSignatureStatuses');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountBalance');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getMultipleAccounts');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getEpochInfo');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBalance');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getRecentPerformanceSamples');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getVoteAccounts');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getInflationRate');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getSupply');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlockTime');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlockHeight');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getMinimumBalanceForRentExemption');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'isBlockhashValid');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTransactionCount');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getTokenAccountsByOwner');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getBlock');
+INSERT INTO rpc_methods (blc_id, mtd_name) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), 'getVersion');
 
 -- initial solana host
 INSERT INTO geo_countries (cnt_alpha2, cnt_alpha3, cnt_name) VALUES ('US', 'USA', 'United States');
-INSERT INTO geo_networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT rowid FROM geo_countries WHERE cnt_alpha2 = 'US'), '107.155.92.0/24', 29802, 'HVC-AS, US');
-INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT rowid FROM geo_networks WHERE ntw_mask = '107.155.92.0/24'), '107.155.92.114');
-INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator) VALUES ((SELECT rowid FROM blockchains WHERE blc_name = 'solana'), (SELECT rowid FROM ips WHERE ntw_id = (SELECT rowid FROM geo_networks WHERE ntw_mask = '107.155.92.0/24') AND ip_addr = '107.155.92.114'), 80, '1.13.5', true, true, false, true, '', false);
+INSERT INTO geo_networks (cnt_id, ntw_mask, ntw_as, ntw_name) VALUES ((SELECT cnt_id FROM geo_countries WHERE cnt_alpha2 = 'US'), '107.155.92.0/24', 29802, 'HVC-AS, US');
+INSERT INTO ips (ntw_id, ip_addr) VALUES ((SELECT ntw_id FROM geo_networks WHERE ntw_mask = '107.155.92.0/24'), '107.155.92.114');
+INSERT INTO peers (blc_id, ip_id, prs_port, prs_version, prs_is_rpc, prs_is_alive, prs_is_ssl, prs_is_main_net, prs_node_pubkey, prs_is_validator) VALUES ((SELECT blc_id FROM blockchains WHERE blc_name = 'solana'), (SELECT ip_id FROM ips WHERE ntw_id = (SELECT ntw_id FROM geo_networks WHERE ntw_mask = '107.155.92.0/24') AND ip_addr = '107.155.92.114'), 80, '1.13.5', true, true, false, true, '', false);
 
 
 -- +migrate Down

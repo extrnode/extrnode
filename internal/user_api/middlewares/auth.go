@@ -40,7 +40,7 @@ var (
 	ErrAuthUnknown      = echo.NewHTTPError(http.StatusUnauthorized, "Auth unknown error")
 )
 
-func NewAuthMiddleware(ctx context.Context, conf config.ApiConfig) (a AuthMiddleware, err error) {
+func NewAuthMiddleware(ctx context.Context, conf config.UserApiConfig) (a AuthMiddleware, err error) {
 	opt := option.WithCredentialsFile(conf.FirebaseFilePath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
@@ -76,7 +76,7 @@ func (a *AuthMiddleware) getTokenInfo(authToken string) (tokenInfo *auth.Token, 
 			return tokenInfo, ErrTokenRevoked
 		}
 
-		log.Logger.Api.Errorf("getTokenInfo: VerifyIDTokenAndCheckRevoked: %s", err)
+		log.Logger.UserApi.Errorf("getTokenInfo: VerifyIDTokenAndCheckRevoked: %s", err)
 		return tokenInfo, ErrAuthUnknown
 	}
 	if tokenInfo == nil {
