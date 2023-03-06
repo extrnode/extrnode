@@ -23,10 +23,22 @@ const (
 	jsonrpcVersion = "2.0"
 )
 
+var possibleContentTypes = map[string]struct{}{
+	echo.MIMEApplicationJSON:          {},
+	"application/json; charset=utf-8": {}, // echo.MIMEApplicationJSONCharsetUTF8 with capitalized part
+	"application/json;charset=utf-8":  {},
+}
+
+func isContentTypeValid(contentTypeHeader string) bool {
+	_, ok := possibleContentTypes[strings.ToLower(contentTypeHeader)]
+
+	return ok
+}
+
 func NewValidatorMiddleware(config ValidatorContextConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
+			if !isContentTypeValid(c.Request().Header.Get(echo.HeaderContentType)) {
 				return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Invalid content-type, this application only supports application/json")
 			}
 
