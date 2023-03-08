@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/clickhouse"
+	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
+	"extrnode-be/internal/pkg/storage/sqlite"
+	"extrnode-be/internal/scanner/config"
 	"extrnode-be/internal/scanner/scaners/asn"
 )
 
@@ -26,14 +30,20 @@ var maxSupportedTransactionVersion uint64 = 0
 
 type SolanaAdapter struct {
 	ctx                    context.Context
-	storage                storage.PgStorage
+	cfg                    config.Config
+	storage                sqlite.Storage
 	blockchainID           int
 	voteAccountsNodePubkey map[string]struct{} // solana.PublicKey
 	signatureForAddress    solana.Signature
+	slot                   uint64
 	baseRpcClient          *rpc.Client
+	scanStartTime          time.Time
+
+	scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod]
+	scannerPeersCollector   *delayed_insertion.Collector[clickhouse.ScannerPeer]
 }
 
-func NewSolanaAdapter(ctx context.Context, storage storage.PgStorage) (*SolanaAdapter, error) {
+func NewSolanaAdapter(ctx context.Context, cfg config.Config, storage sqlite.Storage, scannerMethodsCollector *delayed_insertion.Collector[clickhouse.ScannerMethod], scannerPeersCollector *delayed_insertion.Collector[clickhouse.ScannerPeer]) (*SolanaAdapter, error) {
 	blockchain, err := storage.GetBlockchainByName(solanaBlockchain)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlockchainByName: %s", err)
@@ -43,10 +53,13 @@ func NewSolanaAdapter(ctx context.Context, storage storage.PgStorage) (*SolanaAd
 	}
 
 	sa := SolanaAdapter{
-		storage:       storage,
-		blockchainID:  blockchain.ID,
-		ctx:           ctx,
-		baseRpcClient: createRpcWithTimeout(rpc.MainNetBeta_RPC),
+		storage:                 storage,
+		blockchainID:            blockchain.ID,
+		ctx:                     ctx,
+		cfg:                     cfg,
+		baseRpcClient:           createRpcWithTimeout(rpc.MainNetBeta_RPC),
+		scannerMethodsCollector: scannerMethodsCollector,
+		scannerPeersCollector:   scannerPeersCollector,
 	}
 
 	err = sa.BeforeRun()
@@ -57,7 +70,7 @@ func NewSolanaAdapter(ctx context.Context, storage storage.PgStorage) (*SolanaAd
 	return &sa, nil
 }
 
-func (a *SolanaAdapter) Scan(peer storage.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) Scan(peer sqlite.PeerWithIpAndBlockchain) error {
 	err := a.ScanMethods(peer)
 	if err != nil {
 		return err
@@ -66,7 +79,7 @@ func (a *SolanaAdapter) Scan(peer storage.PeerWithIpAndBlockchain) error {
 	return nil
 }
 
-func (a *SolanaAdapter) GetNewNodes(peer storage.PeerWithIpAndBlockchain) error {
+func (a *SolanaAdapter) GetNewNodes(peer sqlite.PeerWithIpAndBlockchain) error {
 	if !peer.IsAlive || !peer.IsMainNet {
 		return nil
 	}
@@ -99,8 +112,8 @@ func (a *SolanaAdapter) BeforeRun() error {
 	if err != nil {
 		return fmt.Errorf("GetSlot: %s", err)
 	}
-
-	slot = slot - slotShift
+	slot -= slotShift
+	a.slot = slot
 	ops := rpc.GetBlockOpts{
 		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
 		TransactionDetails:             rpc.TransactionDetailsSignatures,
@@ -111,7 +124,7 @@ func (a *SolanaAdapter) BeforeRun() error {
 		}
 		block, err := a.baseRpcClient.GetBlockWithOpts(a.ctx, slot, &ops)
 		if typedErr, ok := err.(*jsonrpc.RPCError); ok && typedErr.Code == slotSkipperErrCode {
-			slot = slot + 10
+			slot += 10
 			continue
 		}
 		if err != nil {
@@ -132,13 +145,15 @@ func (a *SolanaAdapter) BeforeRun() error {
 		a.voteAccountsNodePubkey[va.NodePubkey.String()] = struct{}{}
 	}
 
+	a.scanStartTime = time.Now()
+
 	return nil
 }
 
 const outdatedSlotShift = 15
 
 type peerWithSlot struct {
-	storage.PeerWithIpAndBlockchain
+	sqlite.PeerWithIpAndBlockchain
 	currentSlot uint64
 }
 
@@ -147,7 +162,7 @@ func (a *SolanaAdapter) CheckOutdatedNodes() error {
 	var mx sync.Mutex
 	trueValue := true
 
-	peers, err := a.storage.GetPeers(false, &trueValue, &trueValue, &trueValue, &a.blockchainID)
+	peers, err := a.storage.GetPeers(false, &trueValue, &trueValue, nil, &a.blockchainID)
 	if err != nil {
 		return fmt.Errorf("GetPeers: %s", err)
 	}
@@ -158,7 +173,7 @@ func (a *SolanaAdapter) CheckOutdatedNodes() error {
 	res := make([]peerWithSlot, 0, len(peers))
 	wg.Add(len(peers))
 	for _, p := range peers {
-		go func(wg *sync.WaitGroup, p storage.PeerWithIpAndBlockchain) {
+		go func(wg *sync.WaitGroup, p sqlite.PeerWithIpAndBlockchain) {
 			defer wg.Done()
 
 			rpcClient := createRpcWithTimeout(createNodeUrl(p, p.IsSSL))

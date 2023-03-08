@@ -1,5 +1,9 @@
 .git
 .history
-/indexer
-/api
+/scanner
+/scanner_api
+/user_api
+/proxy
 *.pem
+.env*
+!.env*.example

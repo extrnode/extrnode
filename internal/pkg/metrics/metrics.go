@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/labstack/echo-contrib/prometheus"
@@ -8,14 +9,8 @@ import (
 )
 
 const (
-	gaugeMetricType        = "gauge"
-	counterVecMetricType   = "counter_vec"
-	histogramVecMetricType = "histogram_vec"
-
-	httpCodeMetricArg   = "http_code"
-	methodMetricArg     = "method"
-	serverMetricArg     = "server"
-	rpcErrCodeMetricArg = "code"
+	methodMetricArg = "method"
+	successArg      = "success"
 )
 
 // See the NewMetrics func for proper descriptions and prometheus names!
@@ -23,15 +18,17 @@ const (
 // MetricsList method or you'll going to have a bad time.
 var (
 	metrics struct {
-		startTime              *prometheus.Metric
-		userFailedRequestsCnt  *prometheus.Metric
-		processingTime         *prometheus.Metric
-		nodeResponseTime       *prometheus.Metric
-		nodeAttemptsPerRequest *prometheus.Metric
-		bytesReadTotal         *prometheus.Metric
-		httpResponsesTotal     *prometheus.Metric
-		rpcError               *prometheus.Metric
-		availableEndpoints     *prometheus.Metric
+		// Gauge
+		startTime          *prometheus.Metric
+		availableEndpoints *prometheus.Metric
+
+		// Counter
+		httpResponsesTotal *prometheus.Metric
+
+		// Histogram
+		executionTime    *prometheus.Metric
+		nodeResponseTime *prometheus.Metric
+		nodeAttempts     *prometheus.Metric
 	}
 
 	metricList []*prometheus.Metric
@@ -40,65 +37,50 @@ var (
 // Creates and populates a new Metrics struct
 // This is where all the prometheus metrics, names and labels are specified
 func init() {
-	initMetric(&metrics.startTime, &prometheus.Metric{
-		ID:          "startTime",
-		Name:        "start_time",
-		Description: "api start time",
-		Type:        gaugeMetricType,
-	})
-	initMetric(&metrics.userFailedRequestsCnt, &prometheus.Metric{
-		ID:          "userFailedRequestsCnt",
-		Name:        "user_failed_requests",
-		Description: "processing error due to user",
-		Type:        counterVecMetricType,
-		Args:        []string{rpcErrCodeMetricArg, httpCodeMetricArg, methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.processingTime, &prometheus.Metric{
-		ID:          "processingTime",
-		Name:        "processing_time",
-		Description: "the time it took to process the request",
-		Type:        histogramVecMetricType,
-		Args:        []string{httpCodeMetricArg, methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.nodeResponseTime, &prometheus.Metric{
-		ID:          "nodeResponseTime",
-		Name:        "node_response_time",
-		Description: "the time it took to fetch data from node",
-		Type:        histogramVecMetricType,
-		Args:        []string{methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.nodeAttemptsPerRequest, &prometheus.Metric{
-		ID:          "nodeAttemptsPerRequest",
-		Name:        "node_attempts_per_request",
-		Description: "attempts to fetch data from node",
-		Type:        histogramVecMetricType,
-		Args:        []string{methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.bytesReadTotal, &prometheus.Metric{
-		ID:   "bytesReadTotal",
-		Name: "bytes_read_total",
-		Type: counterVecMetricType,
-		Args: []string{httpCodeMetricArg, methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.httpResponsesTotal, &prometheus.Metric{
-		ID:   "httpResponsesTotal",
-		Name: "http_responses_total",
-		Type: counterVecMetricType,
-		Args: []string{httpCodeMetricArg, methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.rpcError, &prometheus.Metric{
-		ID:          "rpcError",
-		Name:        "rpc_error",
-		Description: "inner blockchain rpc error",
-		Type:        counterVecMetricType,
-		Args:        []string{rpcErrCodeMetricArg, httpCodeMetricArg, methodMetricArg, serverMetricArg},
-	})
-	initMetric(&metrics.availableEndpoints, &prometheus.Metric{
-		ID:          "availableEndpoints",
-		Name:        "available_endpoints",
-		Description: "amount of available endpoints (without partners)",
-		Type:        gaugeMetricType,
-	})
+	initMetric(&metrics.startTime, newGauge(
+		"startTime",
+		"start_time",
+		"scanner_api start time",
+	))
+
+	initMetric(&metrics.availableEndpoints, newGauge(
+		"availableEndpoints",
+		"available_endpoints",
+		"amount of available endpoints (without partners)",
+	))
+
+	basicArgs := []string{methodMetricArg, successArg}
+
+	initMetric(&metrics.httpResponsesTotal, newCounter(
+		"httpResponsesTotal",
+		"http_responses_total",
+		"",
+		basicArgs,
+	))
+
+	initMetric(&metrics.executionTime, newHistogram(
+		"executionTime",
+		"execution_time",
+		"total request execution time",
+		basicArgs,
+		[]float64{50, 100, 500, 800, 1000, 2000, 4000, 8000, 10000, 15000, 20000, 30000},
+	))
+
+	initMetric(&metrics.nodeResponseTime, newHistogram(
+		"nodeResponseTime",
+		"node_response_time",
+		"the time it took to fetch data from node",
+		basicArgs,
+		[]float64{50, 100, 500, 800, 1000, 2000, 4000, 8000, 10000, 15000, 20000, 30000},
+	))
+
+	initMetric(&metrics.nodeAttempts, newHistogram(
+		"nodeAttempts",
+		"node_attempts",
+		"attempts to fetch data from node",
+		basicArgs,
+		[]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+	))
 }
 
 func initMetric(dest **prometheus.Metric, metric *prometheus.Metric) {
@@ -115,36 +97,24 @@ func InitStartTime() {
 	metrics.startTime.MetricCollector.(prom.Gauge).Set(float64(time.Now().UTC().Unix()))
 }
 
-// TODO: use after adding error types
-func IncUserFailedRequestsCnt(rpcErrCode, httpCode, method, server string) {
-	l := prom.Labels{rpcErrCodeMetricArg: rpcErrCode, httpCodeMetricArg: httpCode, methodMetricArg: method, serverMetricArg: server}
-	metrics.userFailedRequestsCnt.MetricCollector.(*prom.CounterVec).With(l).Inc()
+func ObserveExecutionTime(method string, success bool, d time.Duration) {
+	l := prom.Labels{methodMetricArg: method, successArg: fmt.Sprintf("%t", success)}
+	metrics.executionTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d.Milliseconds()))
 }
 
-func ObserveProcessingTime(d time.Duration) {
-	l := prom.Labels{httpCodeMetricArg: "httpCode", methodMetricArg: "method", serverMetricArg: "server"}
-	metrics.processingTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d.Milliseconds()))
-}
-func ObserveNodeResponseTime(method, server string, d int64) {
-	l := prom.Labels{methodMetricArg: method, serverMetricArg: server}
+func ObserveNodeResponseTime(method string, success bool, d int64) {
+	l := prom.Labels{methodMetricArg: method, successArg: fmt.Sprintf("%t", success)}
 	metrics.nodeResponseTime.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(d))
 }
-func ObserveNodeAttemptsPerRequest(method, server string, attempts int) {
-	l := prom.Labels{methodMetricArg: method, serverMetricArg: server}
-	metrics.nodeAttemptsPerRequest.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(attempts))
+
+func ObserveNodeAttempts(method string, success bool, attempts int) {
+	l := prom.Labels{methodMetricArg: method, successArg: fmt.Sprintf("%t", success)}
+	metrics.nodeAttempts.MetricCollector.(*prom.HistogramVec).With(l).Observe(float64(attempts))
 }
 
-func AddBytesReadTotalCnt(httpCode, method, server string, bytes float64) {
-	l := prom.Labels{httpCodeMetricArg: httpCode, methodMetricArg: method, serverMetricArg: server}
-	metrics.bytesReadTotal.MetricCollector.(*prom.CounterVec).With(l).Add(bytes)
-}
-func IncHttpResponsesTotalCnt(httpCode, method, server string) {
-	l := prom.Labels{httpCodeMetricArg: httpCode, methodMetricArg: method, serverMetricArg: server}
+func IncHttpResponsesTotalCnt(method string, success bool) {
+	l := prom.Labels{methodMetricArg: method, successArg: fmt.Sprintf("%t", success)}
 	metrics.httpResponsesTotal.MetricCollector.(*prom.CounterVec).With(l).Inc()
-}
-func IncRpcErrorCnt(rpcErrCode, httpCode, method, server string) {
-	l := prom.Labels{rpcErrCodeMetricArg: rpcErrCode, httpCodeMetricArg: httpCode, methodMetricArg: method, serverMetricArg: server}
-	metrics.rpcError.MetricCollector.(*prom.CounterVec).With(l).Inc()
 }
 
 func ObserveAvailableEndpoints(amount int) {

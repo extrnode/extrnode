@@ -10,34 +10,8 @@ import (
 	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
-)
 
-type TopRpcMethod string
-
-const (
-	getAccountInfo                    TopRpcMethod = "getAccountInfo"
-	sendTransaction                                = "sendTransaction"
-	getSignaturesForAddress                        = "getSignaturesForAddress"
-	getLatestBlockhash                             = "getLatestBlockhash"
-	getSlot                                        = "getSlot"
-	getTransaction                                 = "getTransaction"
-	getInflationReward                             = "getInflationReward"
-	getProgramAccounts                             = "getProgramAccounts"
-	getSignatureStatuses                           = "getSignatureStatuses"
-	getTokenAccountBalance                         = "getTokenAccountBalance"
-	getMultipleAccounts                            = "getMultipleAccounts"
-	getEpochInfo                                   = "getEpochInfo"
-	getBalance                                     = "getBalance"
-	getRecentPerformanceSamples                    = "getRecentPerformanceSamples"
-	getVoteAccounts                                = "getVoteAccounts"
-	getInflationRate                               = "getInflationRate"
-	getSupply                                      = "getSupply"
-	getBlockTime                                   = "getBlockTime"
-	getBlockHeight                                 = "getBlockHeight"
-	getMinimumBalanceForRentExemption              = "getMinimumBalanceForRentExemption"
-	isBlockhashValid                               = "isBlockhashValid"
-	getTransactionCount                            = "getTransactionCount"
-	getTokenAccountsByOwner                        = "getTokenAccountsByOwner"
+	solana2 "extrnode-be/internal/pkg/util/solana"
 )
 
 const (
@@ -55,30 +29,30 @@ var (
 	limit = 1
 )
 
-func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Client) (out bool, responseTime time.Duration, code int, err error) {
+func (a *SolanaAdapter) checkRpcMethod(method string, rpcClient *rpc.Client) (out bool, responseTime time.Duration, code int, err error) {
 	code = http.StatusOK
 	start := time.Now()
 
 	switch method {
-	case getAccountInfo:
+	case solana2.GetAccountInfo:
 		var resp *rpc.GetAccountInfoResult
 		resp, err = rpcClient.GetAccountInfo(a.ctx, solana.SystemProgramID)
 		if err == nil && resp != nil && resp.Value != nil && resp.Value.Owner == solanaProgramOwner {
 			out = true
 		}
-	case getBalance:
+	case solana2.GetBalance:
 		var resp *rpc.GetBalanceResult
 		resp, err = rpcClient.GetBalance(a.ctx, solana.SystemProgramID, rpc.CommitmentProcessed)
 		if err == nil && resp != nil && resp.Value == 1 {
 			out = true
 		}
-	case getBlockHeight:
+	case solana2.GetBlockHeight:
 		var resp uint64
 		resp, err = rpcClient.GetBlockHeight(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp > 0 {
 			out = true
 		}
-	case getBlockTime:
+	case solana2.GetBlockTime:
 		var block uint64
 		block, err = rpcClient.GetSlot(a.ctx, rpc.CommitmentProcessed)
 		if err == nil {
@@ -88,88 +62,87 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 				out = true
 			}
 		}
-	case getEpochInfo:
+	case solana2.GetEpochInfo:
 		var resp *rpc.GetEpochInfoResult
 		resp, err = rpcClient.GetEpochInfo(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp != nil && resp.TransactionCount != nil {
 			out = true
 		}
-	case getInflationRate:
+	case solana2.GetInflationRate:
 		var resp *rpc.GetInflationRateResult
 		resp, err = rpcClient.GetInflationRate(a.ctx)
 		if err == nil && resp != nil &&
 			(resp.Validator+resp.Total+resp.Foundation+resp.Epoch) > 0 {
 			out = true
 		}
-	case getInflationReward:
-		// TODO: temporary remove this check
-		//var resp []*rpc.GetInflationRewardResult
-		//resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil)
-		//if err == nil && len(resp) == 1 {
-		out = true
-		//}
-	case getLatestBlockhash:
+	case solana2.GetInflationReward:
+		var resp []*rpc.GetInflationRewardResult
+		resp, err = rpcClient.GetInflationReward(a.ctx, []solana.PublicKey{solana.SystemProgramID}, nil)
+		if err == nil && len(resp) == 1 {
+			out = true
+		}
+	case solana2.GetLatestBlockhash:
 		var resp *rpc.GetLatestBlockhashResult
 		resp, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp != nil && resp.Value != nil && !resp.Value.Blockhash.IsZero() {
 			out = true
 		}
-	case getMinimumBalanceForRentExemption:
+	case solana2.GetMinimumBalanceForRentExemption:
 		var resp uint64
 		resp, err = rpcClient.GetMinimumBalanceForRentExemption(a.ctx, 100, rpc.CommitmentProcessed)
 		if err == nil && resp > 0 {
 			out = true
 		}
-	case getMultipleAccounts:
+	case solana2.GetMultipleAccounts:
 		var resp *rpc.GetMultipleAccountsResult
 		resp, err = rpcClient.GetMultipleAccounts(a.ctx, solana.SystemProgramID)
 		if err == nil && resp != nil && resp.Value != nil &&
 			len(resp.Value) > 0 && resp.Value[0].Owner == solanaProgramOwner {
 			out = true
 		}
-	case getProgramAccounts:
+	case solana2.GetProgramAccounts:
 		var resp rpc.GetProgramAccountsResult
 		resp, err = rpcClient.GetProgramAccounts(a.ctx, testKey2)
 		if err == nil && len(resp) > 0 {
 			out = true
 		}
-	case getRecentPerformanceSamples:
+	case solana2.GetRecentPerformanceSamples:
 		var resp []*rpc.GetRecentPerformanceSamplesResult
 		resp, err = rpcClient.GetRecentPerformanceSamples(a.ctx, nil)
 		if err == nil && len(resp) > 0 {
 			out = true
 		}
-	case getSignaturesForAddress:
+	case solana2.GetSignaturesForAddress:
 		var resp []*rpc.TransactionSignature
 		resp, err = rpcClient.GetSignaturesForAddressWithOpts(a.ctx, testKey4, &rpc.GetSignaturesForAddressOpts{Limit: &limit})
 		if err == nil && len(resp) > 0 {
 			out = true
 		}
-	case getSignatureStatuses:
+	case solana2.GetSignatureStatuses:
 		var resp *rpc.GetSignatureStatusesResult
 		resp, err = rpcClient.GetSignatureStatuses(a.ctx, true, a.signatureForAddress)
 		if err == nil && len(resp.Value) > 0 && resp.Value[0] != nil {
 			out = true
 		}
-	case getSlot:
+	case solana2.GetSlot:
 		var resp uint64
 		resp, err = rpcClient.GetSlot(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp > 0 {
 			out = true
 		}
-	case getSupply:
+	case solana2.GetSupply:
 		var resp *rpc.GetSupplyResult
 		resp, err = rpcClient.GetSupply(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp != nil && resp.Value != nil && len(resp.Value.NonCirculatingAccounts) > 0 {
 			out = true
 		}
-	case getTokenAccountBalance:
+	case solana2.GetTokenAccountBalance:
 		var resp *rpc.GetTokenAccountBalanceResult
 		resp, err = rpcClient.GetTokenAccountBalance(a.ctx, testTokenAccount, rpc.CommitmentProcessed)
 		if err == nil && resp != nil && resp.Value != nil && resp.Value.Decimals > 0 {
 			out = true
 		}
-	case getTokenAccountsByOwner:
+	case solana2.GetTokenAccountsByOwner:
 		conf := rpc.GetTokenAccountsConfig{
 			Mint: &testMint,
 		}
@@ -179,7 +152,7 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 			resp.Value[0] != nil && resp.Value[0].Account.Owner == solana.TokenProgramID {
 			out = true
 		}
-	case getTransaction:
+	case solana2.GetTransaction:
 		var resp *rpc.GetTransactionResult
 		ops := rpc.GetTransactionOpts{
 			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
@@ -188,19 +161,19 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		if err == nil && resp.BlockTime != nil && resp.BlockTime.Time().Unix() > 0 {
 			out = true
 		}
-	case getTransactionCount:
+	case solana2.GetTransactionCount:
 		var resp uint64
 		resp, err = rpcClient.GetTransactionCount(a.ctx, rpc.CommitmentProcessed)
 		if err == nil && resp > 0 {
 			out = true
 		}
-	case getVoteAccounts:
+	case solana2.GetVoteAccounts:
 		var resp *rpc.GetVoteAccountsResult
 		resp, err = rpcClient.GetVoteAccounts(a.ctx, nil)
 		if err == nil && resp != nil && len(resp.Current) > 0 {
 			out = true
 		}
-	case isBlockhashValid:
+	case solana2.IsBlockhashValid:
 		var blockhash *rpc.GetLatestBlockhashResult
 		blockhash, err = rpcClient.GetLatestBlockhash(a.ctx, rpc.CommitmentFinalized)
 		if err == nil && blockhash != nil && blockhash.Value != nil {
@@ -210,7 +183,25 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 				out = true
 			}
 		}
-	case sendTransaction:
+	case solana2.GetBlock:
+		var resp *rpc.GetBlockResult
+		slot := a.slot
+		for j := 0; j < getBlockTries; j++ {
+			resp, err = rpcClient.GetBlockWithOpts(a.ctx, slot, &rpc.GetBlockOpts{
+				MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
+			})
+			if typedErr, ok := err.(*jsonrpc.RPCError); ok && typedErr.Code == slotSkipperErrCode {
+				slot = slot + 10
+				continue
+			}
+			if err == nil && !resp.Blockhash.IsZero() {
+				out = true
+			}
+			break
+		}
+	case solana2.GetVersion:
+		out = true // if alghorithm reach this point, then getVersion is working method on node
+	case solana2.SendTransaction:
 		var blockhash *rpc.GetRecentBlockhashResult
 		blockhash, err = rpcClient.GetRecentBlockhash(a.ctx, rpc.CommitmentFinalized)
 		if err == nil {
@@ -247,9 +238,9 @@ func (a *SolanaAdapter) checkRpcMethod(method TopRpcMethod, rpcClient *rpc.Clien
 		if typedErr, ok := err.(*jsonrpc.RPCError); ok {
 			// rm popular errors
 			if typedErr.Code == -32601 || typedErr.Code == -32011 ||
-				method == getInflationReward && (typedErr.Code == -32004 || typedErr.Code == -32001) ||
-				method == getTokenAccountsByOwner && typedErr.Code == -32010 || method == getProgramAccounts && typedErr.Code == -32010 ||
-				method == getBlockTime && typedErr.Code == -32004 {
+				method == solana2.GetInflationReward && (typedErr.Code == -32004 || typedErr.Code == -32001) ||
+				method == solana2.GetTokenAccountsByOwner && typedErr.Code == -32010 || method == solana2.GetProgramAccounts && typedErr.Code == -32010 ||
+				method == solana2.GetBlockTime && typedErr.Code == -32004 {
 				err = nil
 			} else {
 				err = reformatSolanaRpcError(err)

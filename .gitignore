@@ -20,7 +20,9 @@ vendor/
 config.yml*
 distribution.yml
 /scanner
-/api
+/scanner_api
+/user_api
+/proxy
 
 !/.golangci.yml
 /.build
@@ -29,5 +31,9 @@ distribution.yml
 .secrets
 .vscode
 mock_*
-.env
+.env*
+!.env*.example
 *.pem
+firebase.json
+/creds/*
+sqlite.db*

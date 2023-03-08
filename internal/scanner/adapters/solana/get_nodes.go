@@ -102,9 +102,9 @@ func (a *SolanaAdapter) filterAndUpdateNodes(nodes []models.NodeInfo) (res []mod
 		return
 	}
 
-	ips := make([]net.IP, 0, len(nodes))
+	ips := make([]string, 0, len(nodes))
 	for _, n := range nodes {
-		ips = append(ips, n.IP)
+		ips = append(ips, n.IP.String())
 	}
 
 	existentPeersMap, err := a.storage.GetExistentPeers(a.blockchainID, ips)

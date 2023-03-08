@@ -6,17 +6,19 @@ import (
 	"sync"
 	"time"
 
-	"extrnode-be/internal/pkg/config"
 	"extrnode-be/internal/pkg/log"
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/clickhouse"
+	"extrnode-be/internal/pkg/storage/clickhouse/delayed_insertion"
+	"extrnode-be/internal/pkg/storage/sqlite"
 	"extrnode-be/internal/scanner/adapters"
 	"extrnode-be/internal/scanner/adapters/solana"
+	"extrnode-be/internal/scanner/config"
 	"extrnode-be/internal/scanner/scaners/nmap"
 )
 
 type scanner struct {
-	cfg     config.Config
-	storage storage.PgStorage
+	cfg       config.Config
+	slStorage sqlite.Storage
 
 	taskQueue     chan scannerTask
 	nmapTaskQueue chan scannerTask
@@ -27,24 +29,32 @@ type scanner struct {
 	adapters  map[chainType]adapters.Adapter
 }
 
+const (
+	collectorInterval = 5 * time.Minute
+)
+
 func NewScanner(cfg config.Config) (*scanner, error) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	s, err := storage.New(ctx, cfg.PG)
+	slStorage, err := sqlite.New(ctx, cfg.SL)
 	if err != nil {
-		cancelFunc()
-		return nil, fmt.Errorf("storage init: %s", err)
+		return nil, fmt.Errorf("SL storage init: %s", err)
+	}
+	chStorage, err := clickhouse.New(cfg.CH.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("CH storage init: %s", err)
 	}
 
-	solanaAdapter, err := solana.NewSolanaAdapter(ctx, s)
+	scannerMethodsCollector := delayed_insertion.New[clickhouse.ScannerMethod](ctx, chStorage, collectorInterval)
+	scannerPeersCollector := delayed_insertion.New[clickhouse.ScannerPeer](ctx, chStorage, collectorInterval)
+	solanaAdapter, err := solana.NewSolanaAdapter(ctx, cfg, slStorage, scannerMethodsCollector, scannerPeersCollector)
 	if err != nil {
-		cancelFunc()
 		return nil, fmt.Errorf("NewSolanaAdapter: %s", err)
 	}
 
 	return &scanner{
 		cfg:           cfg,
-		storage:       s,
+		slStorage:     slStorage,
 		taskQueue:     make(chan scannerTask),
 		nmapTaskQueue: make(chan scannerTask),
 		waitGroup:     &sync.WaitGroup{},
@@ -150,7 +160,7 @@ func (s *scanner) runNmap(ctx context.Context) {
 
 		case task := <-s.nmapTaskQueue:
 			isIdle = false
-			err := nmap.ScanAndInsertPorts(s.ctx, s.storage, task.peer)
+			err := nmap.ScanAndInsertPorts(s.ctx, s.slStorage, task.peer)
 			if err != nil {
 				log.Logger.Scanner.Errorf("NmapCheck (%s %s:%d): %s", task.chain, task.peer.Address, task.peer.Port, err)
 			}

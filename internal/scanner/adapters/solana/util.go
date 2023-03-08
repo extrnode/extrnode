@@ -10,7 +10,7 @@ import (
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/klauspost/compress/gzhttp"
 
-	"extrnode-be/internal/pkg/storage"
+	"extrnode-be/internal/pkg/storage/sqlite"
 )
 
 var (
@@ -46,7 +46,7 @@ func createRpcWithTimeout(host string) *rpc.Client {
 	return rpc.NewWithCustomRPCClient(jsonrpcClient)
 }
 
-func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (rpcClient *rpc.Client, isSSl bool, version string, err error) {
+func (a *SolanaAdapter) getValidRpc(peer sqlite.PeerWithIpAndBlockchain) (rpcClient *rpc.Client, isSSl bool, version string, err error) {
 	rpcClient = createRpcWithTimeout(createNodeUrl(peer, isSSl))
 	versionRes, err := rpcClient.GetVersion(a.ctx)
 	if err != nil {
@@ -65,7 +65,7 @@ func (a *SolanaAdapter) getValidRpc(peer storage.PeerWithIpAndBlockchain) (rpcCl
 	return rpcClient, isSSl, version, nil
 }
 
-func createNodeUrl(p storage.PeerWithIpAndBlockchain, isSSL bool) string {
+func createNodeUrl(p sqlite.PeerWithIpAndBlockchain, isSSL bool) string {
 	schema := "http://"
 	if isSSL {
 		schema = "https://"

@@ -1,3 +1,5 @@
+.PHONY: build start dev stop test mocks lint clickhouse
+
 SHELL := /bin/bash
 
 export APP_NAME=extrnode-go
@@ -11,8 +13,11 @@ build:
 start:
 	@docker-compose up -d
 
-dev:
-	@docker-compose up -d postgres
+dev: clickhouse
+	@docker-compose -f docker-compose-postgres.yml up -d postgres
+
+clickhouse:
+	@docker-compose -f docker-compose-clickhouse.yml up -d clickhouse
 
 stop:
 	@docker-compose stop

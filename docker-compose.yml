@@ -6,42 +6,69 @@ services:
     image: extrnode-go:latest
     restart: always
     tty: true
-    depends_on:
-      - postgres
     env_file:
       - .env
     entrypoint: "scanner"
     command:
       - -log=debug
+    logging:
+      options:
+        max-size: "1g"
+    volumes:
+      - sqlite:/sqlite
 
-  extrnode-api:
-    container_name: extrnode-api
+  extrnode-scanner-api:
+    container_name: extrnode-scanner-api
     image: extrnode-go:latest
     restart: always
     tty: true
     ports:
-      - "${API_PORT}:${API_PORT}"
-      - "${API_METRICS_PORT}:${API_METRICS_PORT}"
-    depends_on:
-      - postgres
+      - "${SAPI_PORT}:${SAPI_PORT}"
     env_file:
       - .env
-    entrypoint: "api"
+    entrypoint: "scanner_api"
     command:
       - -log=debug
-
-  postgres:
-    container_name: extrnode-postgres
-    image: postgres:11
-    ports:
-      - "5432:5432"
-    restart: always
-    environment:
-      POSTGRES_USER: "${PG_USER}"
-      POSTGRES_PASSWORD: "${PG_PASS}"
-      POSTGRES_DB: "${PG_DB}"
+    logging:
+      options:
+        max-size: "1g"
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - sqlite:/sqlite
+
+  extrnode-user-api:
+    container_name: extrnode-user-api
+    image: extrnode-go:latest
+    restart: always
+    tty: true
+    ports:
+      - "${UAPI_PORT}:${UAPI_PORT}"
+    env_file:
+      - .env
+    entrypoint: "user_api"
+    command:
+      - -log=debug
+    logging:
+      options:
+        max-size: "1g"
+
+  extrnode-proxy:
+    container_name: extrnode-proxy
+    image: extrnode-go:latest
+    restart: always
+    tty: true
+    ports:
+      - "${PROXY_PORT}:${PROXY_PORT}"
+      - "${PROXY_METRICS_PORT}:${PROXY_METRICS_PORT}"
+    env_file:
+      - .env
+    entrypoint: "proxy"
+    command:
+      - -log=debug
+    logging:
+      options:
+        max-size: "1g"
+    volumes:
+      - sqlite:/sqlite
 
 volumes:
-  postgres:
+  sqlite:

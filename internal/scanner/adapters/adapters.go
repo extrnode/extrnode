@@ -1,10 +1,10 @@
 package adapters
 
-import "extrnode-be/internal/pkg/storage"
+import "extrnode-be/internal/pkg/storage/sqlite"
 
 type Adapter interface {
-	Scan(peer storage.PeerWithIpAndBlockchain) error
-	GetNewNodes(peer storage.PeerWithIpAndBlockchain) error
+	Scan(peer sqlite.PeerWithIpAndBlockchain) error
+	GetNewNodes(peer sqlite.PeerWithIpAndBlockchain) error
 	BeforeRun() error
 	CheckOutdatedNodes() error
 }
