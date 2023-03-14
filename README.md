@@ -12,7 +12,7 @@ A case in point: in early November, Hetzner discontinued all Solana nodes on its
 
 This story shows that trusting only one RPC on a centrally hosted service is dangerous. A dApp developer can reduce the chances of failure with a script, module, or standalone app that automatically switches to a spare RPC endpoint in case of any problem with the primary node. But what if the alternate one fails too? This is the problem we are going to solve with extrnode.
 
-## Why are RPCs so important?
+## What Is extrnode?
 The RPC layer is centralized. Many dApps are connected to RPC nodes run by a handful of major providers and hosted on the same servers. If something happens to the hosting providers or the nodes, the dApps will lose their connection to the blockchain and stop working.
 
 Solana's developers needed a tool to switch their application to a spare RPC node automatically in case of problems with the node in use. So we developed extrnode’s public load balancer, a solution that automatically reroutes application requests to one of the working RPC nodes from a vast cluster.
@@ -23,6 +23,14 @@ Developers can be confident that their applications will always have access to a
 Using extrnode developers will need to send requests to extrnode's RPC endpoint for the load balancer to reroute them to other RPCs.
 
 ![extrnode2.png](public/extrnode2.png)
+
+## How extrnode can facilitate Solana ecosystem
+Solana ecosystem is growing every day at a blistering pace. New dApps, platforms, projects are emerging almost every day. And it's not a secret that Solana is a great base for thousands and millions of projects. But what do all these projects need? Connection to Solana, they need RPC.
+extrnode is a decentralized RPC service that can help Solana developers stay always connected to the network and work non-stop for the community.
+
+Furthermore, as we want to onboard more and more people from Web2 we have to deliver responsible service. As world giants like Google, Amazon, Twitter, Facebook, VISA, etc. had set a pace we have to keep up with it. Modern users are accustomed to super-fast transactions and other regular online processes, that's why if we want to get these users interested in our Web3 products we have to be as fast as Web2 products. If a user has to wait for a bit longer while operating in a crypto wallet or dApp, he’s making an assumption that all Web3 is slow and too complicated. The latter issue  Solana is eliminating and the former extrnode is ready to eliminate.
+
+Extrnode is a decentralized smart balancer and it is both safer and faster rather than centralized providers. Putting frequently requested data in an optimized data structure allows us to respond 100x faster and enhancement of our infrastructure makes it 10x cheaper. Our plan is to make Solana 1000x more effective for community users.
 
 ## Build and Deployment (local)
 - install golang 1.19
